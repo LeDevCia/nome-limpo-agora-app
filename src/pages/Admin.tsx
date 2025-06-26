@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -139,7 +138,13 @@ const Admin = () => {
 
       if (error) throw error;
 
-      setMessages(data || []);
+      // Type the data properly with status casting
+      const typedMessages: ContactMessage[] = (data || []).map(message => ({
+        ...message,
+        status: message.status as 'novo' | 'respondido' | 'em_andamento'
+      }));
+
+      setMessages(typedMessages);
     } catch (error) {
       console.error('Erro ao buscar mensagens:', error);
     }
