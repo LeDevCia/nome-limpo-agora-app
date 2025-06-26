@@ -3,39 +3,32 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Settings } from 'lucide-react';
+import Logo from './Logo';
 
 const Header = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, profile, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
   return (
-    <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+    <header className="bg-white/95 backdrop-blur-sm shadow-sm border-b sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">NL</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Nome Limpo Agora</h1>
-              <p className="text-xs text-gray-600">Nome sujo não combina com você!</p>
-            </div>
-          </Link>
+          <Logo />
 
           <nav className="hidden md:flex items-center space-x-6">
-            <Link to="/" className="text-gray-700 hover:text-primary-600 transition-colors">
+            <Link to="/" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
               Início
             </Link>
-            <Link to="/beneficios" className="text-gray-700 hover:text-primary-600 transition-colors">
+            <Link to="/beneficios" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
               Benefícios
             </Link>
-            <Link to="/contato" className="text-gray-700 hover:text-primary-600 transition-colors">
+            <Link to="/contato" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
               Contato
             </Link>
           </nav>
@@ -43,10 +36,18 @@ const Header = () => {
           <div className="flex items-center space-x-3">
             {isAuthenticated ? (
               <div className="flex items-center space-x-3">
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-green-200 text-green-700 hover:bg-green-50">
+                      <Settings className="w-4 h-4" />
+                      <span>Admin</span>
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/dashboard">
                   <Button variant="outline" size="sm" className="flex items-center space-x-2">
                     <User className="w-4 h-4" />
-                    <span>{user?.name?.split(' ')[0]}</span>
+                    <span>{profile?.name?.split(' ')[0] || 'Usuário'}</span>
                   </Button>
                 </Link>
                 <Button
@@ -61,12 +62,12 @@ const Header = () => {
             ) : (
               <div className="flex items-center space-x-3">
                 <Link to="/login">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="border-green-200 text-green-700 hover:bg-green-50">
                     Entrar
                   </Button>
                 </Link>
                 <Link to="/cadastro">
-                  <Button size="sm" className="gradient-primary text-white">
+                  <Button size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg">
                     Cadastrar
                   </Button>
                 </Link>

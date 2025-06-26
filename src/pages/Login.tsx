@@ -24,8 +24,8 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      const success = await login(email, password);
-      if (success) {
+      const result = await login(email, password);
+      if (result.success) {
         toast({
           title: "Login realizado com sucesso!",
           description: "Bem-vindo de volta ao Nome Limpo Agora.",
@@ -34,7 +34,7 @@ const Login = () => {
       } else {
         toast({
           title: "Erro no login",
-          description: "E-mail ou senha incorretos. Tente novamente.",
+          description: result.error || "E-mail ou senha incorretos.",
           variant: "destructive"
         });
       }
@@ -56,7 +56,7 @@ const Login = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
           <div className="mb-6">
-            <Link to="/" className="inline-flex items-center text-primary-600 hover:text-primary-700 mb-4">
+            <Link to="/" className="inline-flex items-center text-green-600 hover:text-green-700 mb-4">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar ao início
             </Link>
@@ -71,7 +71,7 @@ const Login = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <LogIn className="w-5 h-5 text-primary-600" />
+                <LogIn className="w-5 h-5 text-green-600" />
                 <span>Login</span>
               </CardTitle>
             </CardHeader>
@@ -103,7 +103,7 @@ const Login = () => {
 
                 <Button
                   type="submit"
-                  className="w-full gradient-primary text-white"
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
                   disabled={isLoading}
                 >
                   {isLoading ? 'Entrando...' : 'Entrar'}
@@ -112,7 +112,7 @@ const Login = () => {
                 <div className="text-center space-y-2">
                   <p className="text-gray-600">
                     Não tem cadastro?{' '}
-                    <Link to="/cadastro" className="text-primary-600 hover:text-primary-700 font-medium">
+                    <Link to="/cadastro" className="text-green-600 hover:text-green-700 font-medium">
                       Cadastre-se aqui
                     </Link>
                   </p>
@@ -122,7 +122,7 @@ const Login = () => {
                     <a href="https://wa.me/5511999999999?text=Esqueci minha senha no Nome Limpo Agora" 
                        target="_blank" 
                        rel="noopener noreferrer"
-                       className="text-primary-600 hover:text-primary-700">
+                       className="text-green-600 hover:text-green-700">
                       Fale conosco
                     </a>
                   </p>

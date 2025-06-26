@@ -110,13 +110,19 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      const success = await register(formData);
-      if (success) {
+      const result = await register(formData);
+      if (result.success) {
         toast({
           title: "Cadastro realizado com sucesso!",
           description: "Bem-vindo ao Nome Limpo Agora. Sua análise será iniciada em breve.",
         });
         navigate('/dashboard');
+      } else {
+        toast({
+          title: "Erro no cadastro",
+          description: result.error || "Ocorreu um erro ao realizar o cadastro.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       toast({
@@ -136,7 +142,7 @@ const Register = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <div className="mb-6">
-            <Link to="/" className="inline-flex items-center text-primary-600 hover:text-primary-700 mb-4">
+            <Link to="/" className="inline-flex items-center text-green-600 hover:text-green-700 mb-4">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar ao início
             </Link>
@@ -151,7 +157,7 @@ const Register = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Shield className="w-5 h-5 text-primary-600" />
+                <Shield className="w-5 h-5 text-green-600" />
                 <span>Seus dados estão seguros</span>
               </CardTitle>
             </CardHeader>
@@ -366,7 +372,7 @@ const Register = () => {
 
                 <Button
                   type="submit"
-                  className="w-full gradient-primary text-white py-3 text-lg font-semibold"
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 text-lg font-semibold shadow-lg"
                   disabled={isLoading || !acceptedTerms || !acceptedLGPD}
                 >
                   {isLoading ? 'Cadastrando...' : 'Quero Limpar Meu Nome - R$ 999,99'}
@@ -375,7 +381,7 @@ const Register = () => {
                 <div className="text-center">
                   <p className="text-gray-600">
                     Já tem cadastro?{' '}
-                    <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
+                    <Link to="/login" className="text-green-600 hover:text-green-700 font-medium">
                       Entre aqui
                     </Link>
                   </p>
