@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, MessageSquare, Phone, Home, LayoutDashboard } from 'lucide-react';
 import Logo from './Logo';
 
 const Header = () => {
@@ -22,28 +22,50 @@ const Header = () => {
           <Logo />
 
           <nav className="hidden md:flex items-center space-x-6">
-            <Link to="/" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
-              Início
-            </Link>
-            <Link to="/beneficios" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
-              Benefícios
-            </Link>
-            <Link to="/contato" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
-              Contato
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/dashboard" className="text-gray-700 hover:text-green-600 transition-colors font-medium flex items-center space-x-1">
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </Link>
+                {isAdmin && (
+                  <>
+                    <Link to="/admin" className="text-gray-700 hover:text-green-600 transition-colors font-medium flex items-center space-x-1">
+                      <Settings className="w-4 h-4" />
+                      <span>Admin</span>
+                    </Link>
+                    <Link to="/contato" className="text-gray-700 hover:text-green-600 transition-colors font-medium flex items-center space-x-1">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Mensagens</span>
+                    </Link>
+                  </>
+                )}
+                <Link to="/beneficios" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
+                  Benefícios
+                </Link>
+                <Link to="/contato" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
+                  Contato
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/" className="text-gray-700 hover:text-green-600 transition-colors font-medium flex items-center space-x-1">
+                  <Home className="w-4 h-4" />
+                  <span>Início</span>
+                </Link>
+                <Link to="/beneficios" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
+                  Benefícios
+                </Link>
+                <Link to="/contato" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
+                  Contato
+                </Link>
+              </>
+            )}
           </nav>
 
           <div className="flex items-center space-x-3">
             {isAuthenticated ? (
               <div className="flex items-center space-x-3">
-                {isAdmin && (
-                  <Link to="/admin">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-green-200 text-green-700 hover:bg-green-50">
-                      <Settings className="w-4 h-4" />
-                      <span>Admin</span>
-                    </Button>
-                  </Link>
-                )}
                 <Link to="/dashboard">
                   <Button variant="outline" size="sm" className="flex items-center space-x-2">
                     <User className="w-4 h-4" />

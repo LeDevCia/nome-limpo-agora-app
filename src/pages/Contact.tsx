@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { MessageSquare, Phone, Mail, MapPin, Clock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -31,15 +31,36 @@ const Contact = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate form submission
-    setTimeout(() => {
+    try {
+      const { error } = await supabase
+        .from('contact_messages')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone || null,
+            message: formData.message
+          }
+        ]);
+
+      if (error) throw error;
+
       toast({
         title: "Mensagem enviada com sucesso!",
         description: "Entraremos em contato em breve. Obrigado!",
       });
+      
       setFormData({ name: '', email: '', phone: '', message: '' });
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const formatPhone = (value: string) => {

@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
 
 interface UserProfile {
   id: string;
@@ -52,7 +52,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Fetch profile and check admin role
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
-            await checkAdminRole(session.user.id);
+            const adminStatus = await checkAdminRole(session.user.id);
+            
+            // Redirecionar admin automaticamente apenas no login
+            if (event === 'SIGNED_IN' && adminStatus && window.location.pathname === '/') {
+              window.location.href = '/admin';
+            }
           }, 0);
         } else {
           setProfile(null);
@@ -92,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Ensure status is properly typed
         const typedProfile: UserProfile = {
           ...data,
-          status: data.status as 'pendente' | 'em_analise' | 'finalizado' | 'cancelado'
+          status: data.status as 'pendente' | 'em_analise' | 'proposals_available' | 'finalizado' | 'cancelado'
         };
         setProfile(typedProfile);
       }
@@ -101,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const checkAdminRole = async (userId: string) => {
+  const checkAdminRole = async (userId: string): Promise<boolean> => {
     try {
       const { data } = await supabase
         .from('user_roles')
@@ -110,9 +115,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('role', 'admin')
         .single();
       
-      setIsAdmin(!!data);
+      const adminStatus = !!data;
+      setIsAdmin(adminStatus);
+      return adminStatus;
     } catch (error) {
       setIsAdmin(false);
+      return false;
     }
   };
 
