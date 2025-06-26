@@ -89,7 +89,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (data) {
-        setProfile(data);
+        // Ensure status is properly typed
+        const typedProfile: UserProfile = {
+          ...data,
+          status: data.status as 'pendente' | 'em_analise' | 'finalizado' | 'cancelado'
+        };
+        setProfile(typedProfile);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);

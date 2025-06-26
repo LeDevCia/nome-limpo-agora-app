@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { profile, isAuthenticated } = useAuth();
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
 
   if (!isAuthenticated) {
@@ -27,7 +27,7 @@ const Dashboard = () => {
 
   const getStatusInfo = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'pendente':
         return {
           label: 'Aguardando Análise',
           color: 'bg-yellow-500',
@@ -35,7 +35,7 @@ const Dashboard = () => {
           icon: <Clock className="w-5 h-5" />,
           description: 'Recebemos seus dados e iniciamos a análise do seu CPF.'
         };
-      case 'analyzing':
+      case 'em_analise':
         return {
           label: 'Analisando Débitos',
           color: 'bg-blue-500',
@@ -51,7 +51,7 @@ const Dashboard = () => {
           icon: <CreditCard className="w-5 h-5" />,
           description: 'Temos propostas de quitação! Verifique as opções disponíveis.'
         };
-      case 'completed':
+      case 'finalizado':
         return {
           label: 'Processo Concluído',
           color: 'bg-green-600',
@@ -70,7 +70,7 @@ const Dashboard = () => {
     }
   };
 
-  const statusInfo = getStatusInfo(user?.status || 'pending');
+  const statusInfo = getStatusInfo(profile?.status || 'pendente');
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -104,7 +104,7 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Olá, {user?.name?.split(' ')[0]}!
+            Olá, {profile?.name?.split(' ')[0] || 'Usuário'}!
           </h1>
           <p className="text-gray-600">
             Acompanhe o progresso da limpeza do seu nome
@@ -143,7 +143,7 @@ const Dashboard = () => {
             </Card>
 
             {/* Proposals Card (only show if available) */}
-            {user?.status === 'proposals_available' && (
+            {profile?.status === 'proposals_available' && (
               <Card>
                 <CardHeader>
                   <CardTitle>Propostas de Quitação</CardTitle>
@@ -239,15 +239,15 @@ const Dashboard = () => {
               <CardContent className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-600">CPF</p>
-                  <p className="font-medium">{user?.cpf}</p>
+                  <p className="font-medium">{profile?.cpf}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">E-mail</p>
-                  <p className="font-medium">{user?.email}</p>
+                  <p className="font-medium">{profile?.email}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">WhatsApp</p>
-                  <p className="font-medium">{user?.phone}</p>
+                  <p className="font-medium">{profile?.phone}</p>
                 </div>
               </CardContent>
             </Card>
@@ -280,7 +280,7 @@ const Dashboard = () => {
             </Card>
 
             {/* Next Steps */}
-            {user?.status === 'completed' && (
+            {profile?.status === 'finalizado' && (
               <Card className="border-green-200 bg-green-50">
                 <CardHeader>
                   <CardTitle className="text-green-800">🎉 Parabéns!</CardTitle>

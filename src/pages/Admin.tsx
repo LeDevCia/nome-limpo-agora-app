@@ -89,8 +89,14 @@ const Admin = () => {
 
       if (error) throw error;
 
-      setUsers(data || []);
-      calculateStats(data || []);
+      // Type the data properly
+      const typedUsers: UserProfile[] = (data || []).map(user => ({
+        ...user,
+        status: user.status as 'pendente' | 'em_analise' | 'finalizado' | 'cancelado'
+      }));
+
+      setUsers(typedUsers);
+      calculateStats(typedUsers);
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
       toast({

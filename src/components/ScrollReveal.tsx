@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 
 interface ScrollRevealProps {
@@ -23,43 +23,45 @@ const ScrollReveal: React.FC<ScrollRevealProps> = ({
     triggerOnce: true
   });
 
-  const getVariants = () => {
-    const variants = {
-      hidden: {},
+  const getVariants = (): Variants => {
+    const baseVariants: Variants = {
+      hidden: {
+        opacity: 0
+      },
       visible: {
         opacity: 1,
         transition: {
           duration,
           delay,
-          ease: [0.25, 1, 0.5, 1]
+          ease: [0.25, 1, 0.5, 1] as any
         }
       }
     };
 
     switch (direction) {
       case 'up':
-        variants.hidden = { opacity: 0, y: 50 };
-        variants.visible = { ...variants.visible, y: 0 };
+        baseVariants.hidden = { ...baseVariants.hidden, y: 50 };
+        baseVariants.visible = { ...baseVariants.visible, y: 0 };
         break;
       case 'down':
-        variants.hidden = { opacity: 0, y: -50 };
-        variants.visible = { ...variants.visible, y: 0 };
+        baseVariants.hidden = { ...baseVariants.hidden, y: -50 };
+        baseVariants.visible = { ...baseVariants.visible, y: 0 };
         break;
       case 'left':
-        variants.hidden = { opacity: 0, x: -50 };
-        variants.visible = { ...variants.visible, x: 0 };
+        baseVariants.hidden = { ...baseVariants.hidden, x: -50 };
+        baseVariants.visible = { ...baseVariants.visible, x: 0 };
         break;
       case 'right':
-        variants.hidden = { opacity: 0, x: 50 };
-        variants.visible = { ...variants.visible, x: 0 };
+        baseVariants.hidden = { ...baseVariants.hidden, x: 50 };
+        baseVariants.visible = { ...baseVariants.visible, x: 0 };
         break;
       case 'scale':
-        variants.hidden = { opacity: 0, scale: 0.8 };
-        variants.visible = { ...variants.visible, scale: 1 };
+        baseVariants.hidden = { ...baseVariants.hidden, scale: 0.8 };
+        baseVariants.visible = { ...baseVariants.visible, scale: 1 };
         break;
     }
 
-    return variants;
+    return baseVariants;
   };
 
   return (
