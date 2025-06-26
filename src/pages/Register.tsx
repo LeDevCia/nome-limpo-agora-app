@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -77,6 +76,14 @@ const Register = () => {
   const handleZipCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatZipCode(e.target.value);
     setFormData(prev => ({ ...prev, zipCode: formatted }));
+  };
+
+  const handleLGPDChange = (checked: boolean | "indeterminate") => {
+    setAcceptedLGPD(checked === true);
+  };
+
+  const handleTermsChange = (checked: boolean | "indeterminate") => {
+    setAcceptedTerms(checked === true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -327,7 +334,7 @@ const Register = () => {
                       <Checkbox 
                         id="lgpd" 
                         checked={acceptedLGPD}
-                        onCheckedChange={setAcceptedLGPD}
+                        onCheckedChange={handleLGPDChange}
                         className="mt-1"
                       />
                       <Label htmlFor="lgpd" className="text-sm text-blue-800 leading-relaxed">
@@ -343,7 +350,7 @@ const Register = () => {
                       <Checkbox 
                         id="terms" 
                         checked={acceptedTerms}
-                        onCheckedChange={setAcceptedTerms}
+                        onCheckedChange={handleTermsChange}
                         className="mt-1"
                       />
                       <Label htmlFor="terms" className="text-sm text-blue-800 leading-relaxed">
