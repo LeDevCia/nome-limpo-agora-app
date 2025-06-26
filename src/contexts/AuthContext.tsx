@@ -9,7 +9,7 @@ interface UserProfile {
   email: string;
   cpf: string;
   phone: string;
-  status: 'pendente' | 'em_analise' | 'finalizado' | 'cancelado';
+  status: 'pendente' | 'em_analise' | 'proposals_available' | 'finalizado' | 'cancelado';
   created_at: string;
   birth_date?: string;
   address?: string;
