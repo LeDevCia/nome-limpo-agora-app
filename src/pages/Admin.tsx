@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/Header';
@@ -28,7 +28,8 @@ import {
   Phone,
   Mail,
   Eye,
-  FileSearch
+  FileSearch,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -91,8 +92,23 @@ const Admin = () => {
     </div>;
   }
 
-  if (!isAuthenticated || !isAdmin) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
+          <p className="text-gray-600 mb-4">Você não tem permissão para acessar esta página.</p>
+          <Link to="/dashboard">
+            <Button>Voltar ao Dashboard</Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   useEffect(() => {
@@ -472,6 +488,15 @@ const Admin = () => {
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
+                                <Link to={`/admin/user/${user.id}`}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-green-600 hover:text-green-700"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
                                 <select
                                   value={user.status}
                                   onChange={(e) => updateUserStatus(user.id, e.target.value)}

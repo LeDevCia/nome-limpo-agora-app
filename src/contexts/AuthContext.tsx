@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -40,23 +41,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const ADMIN_USER_ID = '5a905d9e-bff6-4bcb-96de-9a773a203975';
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         setIsAuthenticated(!!session);
         
         if (session?.user) {
-          // Fetch profile and check admin role
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
             const adminStatus = await checkAdminRole(session.user.id);
             
-            // Redirecionar admin automaticamente apenas no login
-            if (event === 'SIGNED_IN' && adminStatus && window.location.pathname === '/') {
-              window.location.href = '/admin';
+            // Redirecionar baseado no papel do usuário apenas no login
+            if (event === 'SIGNED_IN') {
+              console.log('User signed in, admin status:', adminStatus);
+              if (adminStatus) {
+                console.log('Redirecting admin to /admin');
+                window.location.href = '/admin';
+              } else {
+                console.log('Redirecting user to /dashboard');
+                window.location.href = '/dashboard';
+              }
             }
           }, 0);
         } else {
@@ -69,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
@@ -87,19 +98,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
       
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+      
       if (data) {
-        // Ensure status is properly typed
         const typedProfile: UserProfile = {
           ...data,
           status: data.status as 'pendente' | 'em_analise' | 'proposals_available' | 'finalizado' | 'cancelado'
         };
         setProfile(typedProfile);
+        console.log('Profile loaded:', typedProfile);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -108,17 +124,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAdminRole = async (userId: string): Promise<boolean> => {
     try {
-      const { data } = await supabase
+      console.log('Checking admin role for user:', userId);
+      
+      // Verificar se é o usuário admin fixo
+      if (userId === ADMIN_USER_ID) {
+        console.log('User is fixed admin');
+        setIsAdmin(true);
+        return true;
+      }
+
+      // Verificar role na tabela user_roles
+      const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
         .single();
       
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error checking admin role:', error);
+      }
+      
       const adminStatus = !!data;
+      console.log('Admin status from database:', adminStatus);
       setIsAdmin(adminStatus);
       return adminStatus;
     } catch (error) {
+      console.error('Error checking admin role:', error);
       setIsAdmin(false);
       return false;
     }
