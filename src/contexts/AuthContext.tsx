@@ -1,7 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
-import { useNavigate } from 'react-router-dom';
 
 interface UserProfile {
   id: string;
@@ -28,6 +28,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   loading: boolean;
+  getRedirectPath: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +40,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const getRedirectPath = () => {
+    if (!isAuthenticated) return '/';
+    return isAdmin ? '/admin/dashboard' : '/dashboard';
+  };
 
   useEffect(() => {
     // Set up auth state listener
@@ -54,9 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await fetchUserProfile(session.user.id);
             const adminStatus = await checkAdminRole(session.user.id);
             
-            // Redirecionar admin automaticamente apenas no login
-            if (event === 'SIGNED_IN' && adminStatus && window.location.pathname === '/') {
-              window.location.href = '/admin';
+            // Redirecionar baseado no papel do usuário apenas no login
+            if (event === 'SIGNED_IN') {
+              const redirectPath = adminStatus ? '/admin/dashboard' : '/dashboard';
+              if (window.location.pathname === '/' || window.location.pathname === '/login') {
+                window.location.href = redirectPath;
+              }
             }
           }, 0);
         } else {
@@ -190,7 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       register,
       logout,
       isAuthenticated,
-      loading
+      loading,
+      getRedirectPath
     }}>
       {children}
     </AuthContext.Provider>
