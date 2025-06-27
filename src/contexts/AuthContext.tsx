@@ -51,23 +51,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         setIsAuthenticated(!!session);
-        
+
         if (session?.user) {
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
             const adminStatus = await checkAdminRole(session.user.id);
-            
+
             // Redirecionar baseado no papel do usuário apenas no login
             if (event === 'SIGNED_IN') {
               console.log('User signed in, admin status:', adminStatus);
-              if (adminStatus) {
+
+              const currentPath = window.location.pathname;
+
+              if (adminStatus && currentPath !== '/admin') {
                 console.log('Redirecting admin to /admin');
                 window.location.href = '/admin';
-              } else {
+              } else if (!adminStatus && currentPath !== '/dashboard') {
                 console.log('Redirecting user to /dashboard');
                 window.location.href = '/dashboard';
               }
             }
+
           }, 0);
         } else {
           setProfile(null);
@@ -83,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      
+
       if (session?.user) {
         setTimeout(async () => {
           await fetchUserProfile(session.user.id);
@@ -103,12 +107,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('id', userId)
         .single();
-      
+
       if (error) {
         console.error('Error fetching profile:', error);
         return;
       }
-      
+
       if (data) {
         const typedProfile: UserProfile = {
           ...data,
@@ -125,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkAdminRole = async (userId: string): Promise<boolean> => {
     try {
       console.log('Checking admin role for user:', userId);
-      
+
       // Verificar se é o usuário admin fixo
       if (userId === ADMIN_USER_ID) {
         console.log('User is fixed admin');
@@ -140,11 +144,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', userId)
         .eq('role', 'admin')
         .single();
-      
+
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Error checking admin role:', error);
       }
-      
+
       const adminStatus = !!data;
       console.log('Admin status from database:', adminStatus);
       setIsAdmin(adminStatus);

@@ -8,19 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
-  Users, 
-  UserCheck, 
-  Clock, 
-  CheckCircle, 
+import {
+  Users,
+  UserCheck,
+  Clock,
+  CheckCircle,
   Search,
   Trash2,
   BarChart3,
@@ -86,31 +86,6 @@ const Admin = () => {
   const [analyzingUser, setAnalyzingUser] = useState<string | null>(null);
   const { toast } = useToast();
 
-  if (loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
-    </div>;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
-          <p className="text-gray-600 mb-4">Você não tem permissão para acessar esta página.</p>
-          <Link to="/dashboard">
-            <Button>Voltar ao Dashboard</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     fetchUsers();
     fetchMessages();
@@ -125,10 +100,9 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // Type the data properly
       const typedUsers: UserProfile[] = (data || []).map(user => ({
         ...user,
-        status: user.status as 'pendente' | 'em_analise' | 'proposals_available' | 'finalizado' | 'cancelado'
+        status: user.status as UserProfile['status']
       }));
 
       setUsers(typedUsers);
@@ -154,10 +128,9 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // Type the data properly with status casting
       const typedMessages: ContactMessage[] = (data || []).map(message => ({
         ...message,
-        status: message.status as 'novo' | 'respondido' | 'em_andamento'
+        status: message.status as ContactMessage['status']
       }));
 
       setMessages(typedMessages);
@@ -179,7 +152,7 @@ const Admin = () => {
       finalizado: 0,
       cancelado: 0
     });
-    
+
     setStats(stats);
   };
 
@@ -192,13 +165,13 @@ const Admin = () => {
 
       if (error) throw error;
 
-      const updatedUsers = users.map(user => 
+      const updatedUsers = users.map(user =>
         user.id === userId ? { ...user, status: newStatus as any } : user
       );
-      
+
       setUsers(updatedUsers);
       calculateStats(updatedUsers);
-      
+
       toast({
         title: "Sucesso",
         description: "Status atualizado com sucesso!",
@@ -215,20 +188,16 @@ const Admin = () => {
 
   const analyzeUserDebts = async (userId: string, cpf: string) => {
     setAnalyzingUser(userId);
-    
+
     try {
-      // Aqui você implementará a chamada para a API de análise de dívidas
-      // Por enquanto, simulo o processo
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       toast({
         title: "Análise Iniciada",
-        description: `Análise de dívidas para CPF ${cpf} foi iniciada. Você receberá os resultados em breve.`,
+        description: `Análise de dívidas para CPF ${cpf} foi iniciada.`,
       });
-      
-      // Atualizar status para "em_analise"
+
       await updateUserStatus(userId, 'em_analise');
-      
     } catch (error) {
       console.error('Erro ao analisar dívidas:', error);
       toast({
@@ -251,7 +220,7 @@ const Admin = () => {
       const updatedUsers = users.filter(user => user.id !== userId);
       setUsers(updatedUsers);
       calculateStats(updatedUsers);
-      
+
       toast({
         title: "Sucesso",
         description: "Usuário excluído com sucesso!",
@@ -275,10 +244,10 @@ const Admin = () => {
 
       if (error) throw error;
 
-      setMessages(messages.map(msg => 
+      setMessages(messages.map(msg =>
         msg.id === messageId ? { ...msg, status: newStatus as any } : msg
       ));
-      
+
       toast({
         title: "Sucesso",
         description: "Status da mensagem atualizado!",
@@ -301,7 +270,7 @@ const Admin = () => {
       finalizado: { color: 'bg-green-100 text-green-800', label: 'Finalizado' },
       cancelado: { color: 'bg-red-100 text-red-800', label: 'Cancelado' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config?.color || 'bg-gray-100 text-gray-800'}>
@@ -316,7 +285,7 @@ const Admin = () => {
       em_andamento: { color: 'bg-yellow-100 text-yellow-800', label: 'Em Andamento' },
       respondido: { color: 'bg-green-100 text-green-800', label: 'Respondido' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config?.color || 'bg-gray-100 text-gray-800'}>
@@ -327,11 +296,40 @@ const Admin = () => {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.cpf.includes(searchTerm) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.cpf.includes(searchTerm) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+        </div>
+      );
+    }
+
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+
+    if (!isAdmin) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
+            <p className="text-gray-600 mb-4">Você não tem permissão para acessar esta página.</p>
+            <Link to="/dashboard">
+              <Button>Voltar ao Dashboard</Button>
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -618,6 +616,8 @@ const Admin = () => {
       </div>
     </div>
   );
+};
+  return renderContent();
 };
 
 export default Admin;
