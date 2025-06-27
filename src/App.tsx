@@ -10,8 +10,6 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
-import AdminDashboard from "./pages/AdminDashboard";
-import UserDetail from "./pages/UserDetail";
 import Benefits from "./pages/Benefits";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
@@ -36,8 +34,6 @@ const App = () => (
               <Route path="/cadastro" element={<Register />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<Admin />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/user/:userId" element={<UserDetail />} />
               <Route path="/beneficios" element={<Benefits />} />
               <Route path="/contato" element={<Contact />} />
               <Route path="/privacidade" element={<Privacy />} />
