@@ -25,37 +25,37 @@ import ScrollToTop from "./components/ScrollToTop";
 const queryClient = new QueryClient();
 
 const App = () => (
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AuthProvider>
-            <Toaster />
-            <Sonner />
-            <ScrollToTop />
-            <div className="min-h-screen bg-background">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/cadastro" element={<Register />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin/user/:userId" element={<UserDetail />} />
-                <Route path="/admin/user/:userId/details" element={<UserDetail />} />
-                <Route path="/admin/user/:id/debts" element={<UserDebts />} />
-                <Route path="/admin/user/:userId/debts-management" element={<UserDebtsManagement />} />
-                <Route path="/beneficios" element={<Benefits />} />
-                <Route path="/contato" element={<Contact />} />
-                <Route path="/privacidade" element={<Privacy />} />
-                <Route path="/termos" element={<Terms />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <WhatsAppButton />
-              <PWAInstallPrompt />
-            </div>
-          </AuthProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <ScrollToTop />
+          <div className="min-h-screen bg-background">
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/cadastro" element={<Register />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/user/:userId" element={<UserDetail />} />
+              <Route path="/admin/user/:userId/details" element={<UserDetail />} />
+              <Route path="/admin/user/:id/debts" element={<UserDebts />} />
+              <Route path="/admin/user/:userId/debts-management" element={<UserDebtsManagement />} />
+              <Route path="/beneficios" element={<Benefits />} />
+              <Route path="/contato" element={<Contact />} />
+              <Route path="/privacidade" element={<Privacy />} />
+              <Route path="/termos" element={<Terms />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <WhatsAppButton />
+            <PWAInstallPrompt />
+          </div>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
 );
 
 export default App;
