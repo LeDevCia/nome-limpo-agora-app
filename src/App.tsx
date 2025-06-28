@@ -11,6 +11,8 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import UserDetail from "./pages/UserDetail";
+import UserDebts from "./pages/UserDebts";
+import UserDebtsManagement from "./pages/UserDebtsManagement";
 import Benefits from "./pages/Benefits";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
@@ -19,7 +21,6 @@ import NotFound from "./pages/NotFound";
 import WhatsAppButton from "./components/WhatsAppButton";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import ScrollToTop from "./components/ScrollToTop";
-import UserDebts from "./pages/UserDebts";
 
 const queryClient = new QueryClient();
 
@@ -39,7 +40,9 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/admin/user/:userId" element={<UserDetail />} />
+                <Route path="/admin/user/:userId/details" element={<UserDetail />} />
                 <Route path="/admin/user/:id/debts" element={<UserDebts />} />
+                <Route path="/admin/user/:userId/debts-management" element={<UserDebtsManagement />} />
                 <Route path="/beneficios" element={<Benefits />} />
                 <Route path="/contato" element={<Contact />} />
                 <Route path="/privacidade" element={<Privacy />} />
@@ -54,6 +57,5 @@ const App = () => (
       </QueryClientProvider>
     </BrowserRouter>
 );
-
 
 export default App;

@@ -258,15 +258,6 @@ const Admin = () => {
         }
       }
 
-      // Fetch user details
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (userError) throw userError;
-
       toast({
         title: "Sucesso",
         description: existingDebts?.length
@@ -275,7 +266,7 @@ const Admin = () => {
       });
 
       // Redirect to details page
-      navigate(`/admin/user/${userId}/details?name=${encodeURIComponent(name)}`);
+      navigate(`/admin/user/${userId}?name=${encodeURIComponent(name)}`);
     } catch (error) {
       console.error('Erro ao analisar cliente:', error);
       toast({
@@ -399,7 +390,7 @@ const Admin = () => {
           <div className="text-center">
             <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
-            <p className="text-gray-600 mb-4">Você não有 permissão para acessar esta página.</p>
+            <p className="text-gray-600 mb-4">Você não has permissão para acessar esta página.</p>
             <Link to="/dashboard">
               <Button>Voltar ao Dashboard</Button>
             </Link>
@@ -572,11 +563,10 @@ const Admin = () => {
                               </TableCell>
                               <TableCell>
                                 <div className="flex space-x-2">
-                                  <Link to={`/admin/user/${user.id}`}>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                  
+                                    onClick={() => analyzeUser(user.id, user.cpf, user.name)}
                                     disabled={analyzingUser === user.id}
                                     className="text-blue-600 hover:text-blue-700"
                                   >
@@ -589,7 +579,6 @@ const Admin = () => {
                                       </>
                                     )}
                                   </Button>
-                                  </Link>
                                   <select
                                     value={user.status}
                                     onChange={(e) => updateUserStatus(user.id, e.target.value)}

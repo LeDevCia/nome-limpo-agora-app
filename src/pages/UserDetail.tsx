@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useParams, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,9 +7,8 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, MapPin, Calendar, FileText, AlertCircle, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, MapPin, Calendar, FileText, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface UserProfile {
   id: string;
@@ -29,16 +29,16 @@ interface Debt {
   id: string;
   creditor: string;
   amount: number;
-  status: 'pendente' | 'atrasada' | 'em_negociacao' | 'paga';
+  status: string;
   created_at: string;
   user_id: string;
-  cpf?: string; // Made optional to handle cases where cpf might not be returned
+  cpf: string;
 }
 
-const UserDetail: React.FC = () => {
+const UserDetail = () => {
   const { userId } = useParams<{ userId: string }>();
   const [searchParams] = useSearchParams();
-  const userName = searchParams.get('name') || 'Usuário';
+  const userName = searchParams.get('name');
   const { isAuthenticated, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,60 +49,26 @@ const UserDetail: React.FC = () => {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [loadingDebts, setLoadingDebts] = useState(false);
 
-  const formatCurrency = useCallback((value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-    }).format(value);
-  }, []);
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+      </div>
+    );
+  }
 
-  const formatDate = useCallback((date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  }, []);
+  if (!isAuthenticated || !isAdmin) {
+    return <Navigate to="/login" replace />;
+  }
 
-  const fetchUser = useCallback(async () => {
-    if (!userId) {
-      setError('ID do usuário não fornecido');
-      setLoading(false);
-      return;
+  useEffect(() => {
+    if (userId) {
+      fetchUser();
+      fetchDebts();
     }
+  }, [userId]);
 
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        throw error.code === 'PGRST116'
-          ? new Error('Usuário não encontrado')
-          : new Error('Erro ao carregar dados do usuário');
-      }
-
-      setUser({
-        ...data,
-        status: data.status as UserProfile['status'],
-      });
-    } catch (error: any) {
-      setError(error.message || 'Erro ao carregar dados do usuário');
-      toast({
-        title: 'Erro',
-        description: error.message || 'Erro ao carregar dados do usuário',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, toast]);
-
-  const fetchDebts = useCallback(async () => {
+  const fetchDebts = async () => {
     if (!userId) return;
 
     try {
@@ -115,172 +81,115 @@ const UserDetail: React.FC = () => {
 
       if (error) throw error;
 
-      // Ensure data matches Debt interface
-      const formattedDebts: Debt[] = (data || []).map((debt: any) => ({
-        id: debt.id,
-        creditor: debt.creditor,
-        amount: debt.amount,
-        status: debt.status as Debt['status'],
-        created_at: debt.created_at,
-        user_id: debt.user_id,
-        cpf: debt.cpf || undefined, // Handle cases where cpf might be missing
-      }));
-
-      setDebts(formattedDebts);
+      setDebts(data || []);
     } catch (error) {
+      console.error('Error fetching debts:', error);
       toast({
-        title: 'Erro',
-        description: 'Erro ao carregar dívidas',
-        variant: 'destructive',
+        title: "Erro",
+        description: "Erro ao carregar dívidas",
+        variant: "destructive"
       });
     } finally {
       setLoadingDebts(false);
     }
-  }, [userId, toast]);
+  };
 
-  const updateUserStatus = useCallback(
-    async (newStatus: string) => {
-      if (!userId) return;
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
 
-      try {
-        setUpdatingStatus(true);
-        const { error } = await supabase
-          .from('profiles')
-          .update({ status: newStatus })
-          .eq('id', userId);
+  const fetchUser = async () => {
+    if (!userId) return;
 
-        if (error) throw error;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-        setUser(prev => (prev ? { ...prev, status: newStatus as UserProfile['status'] } : null));
-        toast({
-          title: 'Sucesso',
-          description: 'Status atualizado com sucesso!',
-        });
-      } catch (error) {
-        toast({
-          title: 'Erro',
-          description: 'Erro ao atualizar status',
-          variant: 'destructive',
-        });
-      } finally {
-        setUpdatingStatus(false);
+      if (error) {
+        if (error.code === 'PGRST116') {
+          setError('Usuário não encontrado');
+        } else {
+          setError('Erro ao carregar dados do usuário');
+        }
+        return;
       }
-    },
-    [userId, toast]
-  );
 
-  const updateDebtStatus = useCallback(
-    async (debtId: string, newStatus: Debt['status']) => {
-      try {
-        const { error } = await supabase
-          .from('debts')
-          .update({ status: newStatus })
-          .eq('id', debtId);
-
-        if (error) throw error;
-
-        setDebts(prev =>
-          prev.map(debt => (debt.id === debtId ? { ...debt, status: newStatus } : debt))
-        );
-        toast({
-          title: 'Sucesso',
-          description: 'Status da dívida atualizado!',
-        });
-      } catch (error) {
-        toast({
-          title: 'Erro',
-          description: 'Erro ao atualizar status da dívida',
-          variant: 'destructive',
-        });
+      if (data) {
+        const typedUser: UserProfile = {
+          ...data,
+          status: data.status as 'pendente' | 'em_analise' | 'proposals_available' | 'finalizado' | 'cancelado'
+        };
+        setUser(typedUser);
       }
-    },
-    [toast]
-  );
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      setError('Erro ao carregar dados do usuário');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUserStatus = async (newStatus: string) => {
+    if (!userId) return;
+
+    try {
+      setUpdatingStatus(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUser(prev => prev ? { ...prev, status: newStatus as any } : null);
+
+      toast({
+        title: "Sucesso",
+        description: "Status atualizado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar status",
+        variant: "destructive"
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { color: string; label: string }> = {
+    const statusConfig = {
       pendente: { color: 'bg-yellow-100 text-yellow-800', label: 'Pendente' },
       em_analise: { color: 'bg-blue-100 text-blue-800', label: 'Em Análise' },
       proposals_available: { color: 'bg-purple-100 text-purple-800', label: 'Propostas Disponíveis' },
       finalizado: { color: 'bg-green-100 text-green-800', label: 'Finalizado' },
-      cancelado: { color: 'bg-red-100 text-red-800', label: 'Cancelado' },
+      cancelado: { color: 'bg-red-100 text-red-800', label: 'Cancelado' }
     };
 
-    const config = statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
+    const config = statusConfig[status as keyof typeof statusConfig];
     return (
-      <Badge className={config.color} aria-label={`Status: ${config.label}`}>
-        {config.label}
+      <Badge className={config?.color || 'bg-gray-100 text-gray-800'}>
+        {config?.label || status}
       </Badge>
     );
   };
-
-  const getDebtStatusBadge = (status: string) => {
-    const debtStatusConfig: Record<string, { color: string; label: string }> = {
-      pendente: { color: 'bg-yellow-100 text-yellow-800', label: 'Pendente' },
-      atrasada: { color: 'bg-red-100 text-red-800', label: 'Atrasada' },
-      em_negociacao: { color: 'bg-blue-100 text-blue-800', label: 'Em Negociação' },
-      paga: { color: 'bg-green-100 text-green-800', label: 'Paga' },
-    };
-
-    const config = debtStatusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
-    return (
-      <Badge className={config.color} aria-label={`Status da dívida: ${config.label}`}>
-        {config.label}
-      </Badge>
-    );
-  };
-
-  useEffect(() => {
-    fetchUser();
-    fetchDebts();
-  }, [fetchUser, fetchDebts]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Skeleton className="h-32 w-32 rounded-full" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !isAdmin) {
-    return <Navigate to="/login" replace />;
-  }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
         <div className="container mx-auto px-4 py-8">
-          <div className="space-y-6">
-            <Skeleton className="h-10 w-32" />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-48" />
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <Skeleton key={i} className="h-8 w-full" />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-32" />
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
           </div>
         </div>
       </div>
@@ -293,12 +202,11 @@ const UserDetail: React.FC = () => {
         <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center h-64 space-y-4">
-            <AlertCircle className="w-16 h-16 text-red-500" aria-hidden="true" />
-            <h2 className="text-2xl font-bold text-gray-900">{error || 'Usuário não encontrado'}</h2>
-            <Button
-              onClick={() => navigate('/admin')}
-              aria-label="Voltar ao painel administrativo"
-            >
+            <AlertCircle className="w-16 h-16 text-red-500" />
+            <h2 className="text-2xl font-bold text-gray-900">
+              {error || 'Usuário não encontrado'}
+            </h2>
+            <Button onClick={() => navigate('/admin')} className="mt-4">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar ao Admin
             </Button>
@@ -311,13 +219,13 @@ const UserDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <Button
             onClick={() => navigate('/admin')}
             variant="outline"
             className="mb-4"
-            aria-label="Voltar ao painel administrativo"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar ao Admin
@@ -326,13 +234,16 @@ const UserDetail: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Detalhes de {userName}
+                Detalhes do Usuário
               </h1>
               <p className="text-gray-600">
                 Visualização completa dos dados do usuário
               </p>
             </div>
-            <div className="mt-4 md:mt-0">{getStatusBadge(user.status)}</div>
+
+            <div className="mt-4 md:mt-0">
+              {getStatusBadge(user.status)}
+            </div>
           </div>
         </div>
 
@@ -342,7 +253,7 @@ const UserDetail: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <User className="w-5 h-5" aria-hidden="true" />
+                  <User className="w-5 h-5" />
                   <span>Informações Pessoais</span>
                 </CardTitle>
               </CardHeader>
@@ -359,14 +270,14 @@ const UserDetail: React.FC = () => {
                   <div>
                     <label className="text-sm font-medium text-gray-600">Email</label>
                     <p className="text-lg text-gray-900 flex items-center space-x-2">
-                      <Mail className="w-4 h-4" aria-hidden="true" />
+                      <Mail className="w-4 h-4" />
                       <span>{user.email}</span>
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Telefone</label>
                     <p className="text-lg text-gray-900 flex items-center space-x-2">
-                      <Phone className="w-4 h-4" aria-hidden="true" />
+                      <Phone className="w-4 h-4" />
                       <span>{user.phone}</span>
                     </p>
                   </div>
@@ -374,14 +285,16 @@ const UserDetail: React.FC = () => {
                     <div>
                       <label className="text-sm font-medium text-gray-600">Data de Nascimento</label>
                       <p className="text-lg text-gray-900 flex items-center space-x-2">
-                        <Calendar className="w-4 h-4" aria-hidden="true" />
-                        <span>{formatDate(user.birth_date)}</span>
+                        <Calendar className="w-4 h-4" />
+                        <span>{new Date(user.birth_date).toLocaleDateString('pt-BR')}</span>
                       </p>
                     </div>
                   )}
                   <div>
                     <label className="text-sm font-medium text-gray-600">Data de Cadastro</label>
-                    <p className="text-lg text-gray-900">{formatDate(user.created_at)}</p>
+                    <p className="text-lg text-gray-900">
+                      {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -392,7 +305,7 @@ const UserDetail: React.FC = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <MapPin className="w-5 h-5" aria-hidden="true" />
+                    <MapPin className="w-5 h-5" />
                     <span>Endereço</span>
                   </CardTitle>
                 </CardHeader>
@@ -431,12 +344,14 @@ const UserDetail: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <FileText className="w-5 h-5" aria-hidden="true" />
+                  <FileText className="w-5 h-5" />
                   <span>Documentos</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">Nenhum documento foi enviado ainda.</p>
+                <p className="text-gray-600">
+                  Nenhum documento foi enviado ainda.
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -452,17 +367,14 @@ const UserDetail: React.FC = () => {
                   <label className="text-sm font-medium text-gray-600">Status Atual</label>
                   {getStatusBadge(user.status)}
                 </div>
+
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-600" htmlFor="user-status">
-                    Novo Status
-                  </label>
+                  <label className="text-sm font-medium text-gray-600">Novo Status</label>
                   <select
-                    id="user-status"
                     value={user.status}
-                    onChange={e => updateUserStatus(e.target.value)}
+                    onChange={(e) => updateUserStatus(e.target.value)}
                     disabled={updatingStatus}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
-                    aria-disabled={updatingStatus}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="pendente">Pendente</option>
                     <option value="em_analise">Em Análise</option>
@@ -471,6 +383,7 @@ const UserDetail: React.FC = () => {
                     <option value="cancelado">Cancelado</option>
                   </select>
                 </div>
+
                 {updatingStatus && (
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
@@ -490,10 +403,8 @@ const UserDetail: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {loadingDebts ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
                   </div>
                 ) : debts.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center">Nenhuma dívida registrada</p>
@@ -504,37 +415,17 @@ const UserDetail: React.FC = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-medium">{debt.creditor}</h4>
-                            <div className="flex items-center space-x-2">
-                              {getDebtStatusBadge(debt.status)}
-                              <select
-                                value={debt.status}
-                                onChange={e => updateDebtStatus(debt.id, e.target.value as Debt['status'])}
-                                className="text-sm px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                                aria-label={`Alterar status da dívida de ${debt.creditor}`}
-                              >
-                                <option value="pendente">Pendente</option>
-                                <option value="atrasada">Atrasada</option>
-                                <option value="em_negociacao">Em Negociação</option>
-                                <option value="paga">Paga</option>
-                              </select>
-                            </div>
+                            <p className="text-sm text-gray-600">{debt.status}</p>
                           </div>
                           <span className="font-semibold">{formatCurrency(debt.amount)}</span>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Registrada em {formatDate(debt.created_at)}
-                        </p>
-                        {debt.cpf && (
-                          <p className="text-sm text-gray-600 mt-1">CPF: {debt.cpf}</p>
-                        )}
                       </div>
                     ))}
                     {debts.length > 3 && (
                       <Button
                         variant="ghost"
                         className="w-full text-green-600 hover:text-green-700"
-                        onClick={() => navigate(`/admin/user/${userId}/debts?name=${encodeURIComponent(userName)}`)}
-                        aria-label={`Ver todas as ${debts.length} dívidas`}
+                        onClick={() => navigate(`/admin/user/${userId}/debts-management?name=${encodeURIComponent(user.name)}`)}
                       >
                         Ver todas ({debts.length})
                       </Button>
@@ -544,19 +435,9 @@ const UserDetail: React.FC = () => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => navigate(`/admin/user/${userId}/debts?name=${encodeURIComponent(userName)}`)}
-                  aria-label="Gerenciar dívidas do usuário"
+                  onClick={() => navigate(`/admin/user/${userId}/debts-management?name=${encodeURIComponent(user.name)}`)}
                 >
                   Gerenciar Dívidas
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={fetchDebts}
-                  aria-label="Atualizar lista de dívidas"
-                >
-                  <RefreshCcw className="w-4 h-4 mr-2" />
-                  Atualizar Dívidas
                 </Button>
               </CardContent>
             </Card>
@@ -567,20 +448,20 @@ const UserDetail: React.FC = () => {
                 <CardTitle>Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <a href={`mailto:${user.email}`} aria-label={`Enviar email para ${user.email}`}>
+                <a href={`mailto:${user.email}`}>
                   <Button variant="outline" className="w-full flex items-center space-x-2">
-                    <Mail className="w-4 h-4" aria-hidden="true" />
+                    <Mail className="w-4 h-4" />
                     <span>Enviar Email</span>
                   </Button>
                 </a>
+
                 <a
                   href={`https://wa.me/55${user.phone.replace(/\D/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`Enviar mensagem via WhatsApp para ${user.phone}`}
                 >
                   <Button variant="outline" className="w-full flex items-center space-x-2">
-                    <Phone className="w-4 h-4" aria-hidden="true" />
+                    <Phone className="w-4 h-4" />
                     <span>WhatsApp</span>
                   </Button>
                 </a>
