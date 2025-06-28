@@ -1,169 +1,164 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ArrowLeft, 
-  Plus, 
-  Trash2, 
-  Edit, 
-  Save, 
-  X,
-  DollarSign,
-  Building,
-  Calendar,
-  AlertCircle
-} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-
-interface Debt {
-  id: string;
-  creditor: string;
-  amount: number;
-  status: string;
-  created_at: string;
-  user_id: string;
-  cpf: string;
-}
+import { ArrowLeft, Plus, Edit, Trash2, CreditCard } from 'lucide-react';
+import Header from '@/components/Header';
+import { UserProfile, Debt } from '@/types';
 
 const UserDebtsManagement = () => {
-  const { userId } = useParams<{ userId: string }>();
-  const [searchParams] = useSearchParams();
-  const userName = searchParams.get('name') || 'Usuário';
-  const { isAuthenticated, isAdmin, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const { userId } = useParams();
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [debts, setDebts] = useState<Debt[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editingDebt, setEditingDebt] = useState<string | null>(null);
-  const [addingDebt, setAddingDebt] = useState(false);
-  const [newDebt, setNewDebt] = useState({
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const [formData, setFormData] = useState({
     creditor: '',
     amount: '',
     status: 'pendente'
   });
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !isAdmin) {
-    return <Navigate to="/login" replace />;
-  }
+  
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (userId) {
-      fetchDebts();
+    if (!loading && (!isAuthenticated || !isAdmin)) {
+      navigate('/');
+      return;
     }
-  }, [userId]);
 
-  const fetchDebts = async () => {
-    if (!userId) return;
+    if (isAuthenticated && isAdmin && userId) {
+      fetchUserData();
+      fetchUserDebts();
+    }
+  }, [isAuthenticated, isAdmin, loading, userId, navigate]);
 
+  const fetchUserData = async () => {
     try {
-      setLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar dados do usuário",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data) {
+        setUser({
+          ...data,
+          cpf: data.document || data.cpf || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
+
+  const fetchUserDebts = async () => {
+    try {
       const { data, error } = await supabase
         .from('debts')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching debts:', error);
+        return;
+      }
 
-      setDebts(data || []);
+      // Map to ensure cpf field exists
+      const debtsWithCpf = data?.map(debt => ({
+        ...debt,
+        cpf: debt.document || debt.cpf || '',
+      })) || [];
+
+      setDebts(debtsWithCpf);
     } catch (error) {
       console.error('Error fetching debts:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar dívidas",
-        variant: "destructive"
-      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const addDebt = async () => {
-    if (!userId || !newDebt.creditor || !newDebt.amount) return;
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
-      // Get user's CPF first
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('cpf')
-        .eq('id', userId)
-        .single();
+      const debtData = {
+        user_id: userId,
+        cpf: user?.cpf || '',
+        creditor: formData.creditor,
+        amount: parseFloat(formData.amount),
+        status: formData.status
+      };
 
-      if (profileError) throw profileError;
+      if (editingDebt) {
+        const { error } = await supabase
+          .from('debts')
+          .update(debtData)
+          .eq('id', editingDebt.id);
 
-      const { error } = await supabase
-        .from('debts')
-        .insert({
-          user_id: userId,
-          cpf: profile.cpf,
-          creditor: newDebt.creditor,
-          amount: parseFloat(newDebt.amount),
-          status: newDebt.status
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Sucesso",
+          description: "Dívida atualizada com sucesso!"
         });
+      } else {
+        const { error } = await supabase
+          .from('debts')
+          .insert([debtData]);
 
-      if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
-      toast({
-        title: "Sucesso",
-        description: "Dívida adicionada com sucesso!",
-      });
+        toast({
+          title: "Sucesso",
+          description: "Dívida adicionada com sucesso!"
+        });
+      }
 
-      setNewDebt({ creditor: '', amount: '', status: 'pendente' });
-      setAddingDebt(false);
-      fetchDebts();
-    } catch (error) {
-      console.error('Error adding debt:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao adicionar dívida",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const updateDebt = async (debtId: string, updates: Partial<Debt>) => {
-    try {
-      const { error } = await supabase
-        .from('debts')
-        .update(updates)
-        .eq('id', debtId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Dívida atualizada com sucesso!",
-      });
-
+      setIsDialogOpen(false);
       setEditingDebt(null);
-      fetchDebts();
+      setFormData({ creditor: '', amount: '', status: 'pendente' });
+      fetchUserDebts();
     } catch (error) {
-      console.error('Error updating debt:', error);
+      console.error('Error saving debt:', error);
       toast({
         title: "Erro",
-        description: "Erro ao atualizar dívida",
+        description: "Erro ao salvar dívida",
         variant: "destructive"
       });
     }
   };
 
-  const deleteDebt = async (debtId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta dívida?')) return;
+  const handleDelete = async (debtId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta dívida?')) {
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -171,14 +166,16 @@ const UserDebtsManagement = () => {
         .delete()
         .eq('id', debtId);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       toast({
         title: "Sucesso",
-        description: "Dívida excluída com sucesso!",
+        description: "Dívida excluída com sucesso!"
       });
-
-      fetchDebts();
+      
+      fetchUserDebts();
     } catch (error) {
       console.error('Error deleting debt:', error);
       toast({
@@ -189,321 +186,191 @@ const UserDebtsManagement = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { color: string; label: string }> = {
-      pendente: { color: 'bg-yellow-100 text-yellow-800', label: 'Pendente' },
-      atrasada: { color: 'bg-red-100 text-red-800', label: 'Atrasada' },
-      em_negociacao: { color: 'bg-blue-100 text-blue-800', label: 'Em Negociação' },
-      quitada: { color: 'bg-green-100 text-green-800', label: 'Quitada' }
-    };
-
-    const config = statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
-    return (
-      <Badge className={config.color}>
-        {config.label}
-      </Badge>
-    );
-  };
-
-  const totalDebts = debts.reduce((sum, debt) => sum + debt.amount, 0);
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Button
-            onClick={() => navigate(`/admin/user/${userId}`)}
-            variant="outline"
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar aos Detalhes do Usuário
-          </Button>
-
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Gerenciar Dívidas
-              </h1>
-              <p className="text-gray-600">
-                Dívidas de {userName}
-              </p>
-            </div>
-
-            <Button
-              onClick={() => setAddingDebt(true)}
-              className="mt-4 md:mt-0 bg-green-600 hover:bg-green-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Dívida
-            </Button>
-          </div>
-        </div>
-
-        {/* Resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Dívidas</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{debts.length}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{formatCurrency(totalDebts)}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Última Atualização</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {debts.length > 0 ? new Date(debts[0].created_at).toLocaleDateString('pt-BR') : 'N/A'}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Formulário de Nova Dívida */}
-        {addingDebt && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Adicionar Nova Dívida</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Credor
-                  </label>
-                  <Input
-                    type="text"
-                    value={newDebt.creditor}
-                    onChange={(e) => setNewDebt({ ...newDebt, creditor: e.target.value })}
-                    placeholder="Nome do credor"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valor
-                  </label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newDebt.amount}
-                    onChange={(e) => setNewDebt({ ...newDebt, amount: e.target.value })}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={newDebt.status}
-                    onChange={(e) => setNewDebt({ ...newDebt, status: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="pendente">Pendente</option>
-                    <option value="atrasada">Atrasada</option>
-                    <option value="em_negociacao">Em Negociação</option>
-                    <option value="quitada">Quitada</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <Button onClick={addDebt} className="bg-green-600 hover:bg-green-700">
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar
-                </Button>
-                <Button
-                  onClick={() => {
-                    setAddingDebt(false);
-                    setNewDebt({ creditor: '', amount: '', status: 'pendente' });
-                  }}
-                  variant="outline"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Cancelar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Lista de Dívidas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dívidas Cadastradas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-              </div>
-            ) : debts.length === 0 ? (
-              <div className="text-center py-8">
-                <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma dívida cadastrada</h3>
-                <p className="text-gray-600">Adicione a primeira dívida para este usuário.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {debts.map((debt) => (
-                  <DebtCard
-                    key={debt.id}
-                    debt={debt}
-                    isEditing={editingDebt === debt.id}
-                    onEdit={() => setEditingDebt(debt.id)}
-                    onCancelEdit={() => setEditingDebt(null)}
-                    onUpdate={(updates) => updateDebt(debt.id, updates)}
-                    onDelete={() => deleteDebt(debt.id)}
-                    formatCurrency={formatCurrency}
-                    getStatusBadge={getStatusBadge}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-};
-
-interface DebtCardProps {
-  debt: Debt;
-  isEditing: boolean;
-  onEdit: () => void;
-  onCancelEdit: () => void;
-  onUpdate: (updates: Partial<Debt>) => void;
-  onDelete: () => void;
-  formatCurrency: (value: number) => string;
-  getStatusBadge: (status: string) => JSX.Element;
-}
-
-const DebtCard: React.FC<DebtCardProps> = ({
-  debt,
-  isEditing,
-  onEdit,
-  onCancelEdit,
-  onUpdate,
-  onDelete,
-  formatCurrency,
-  getStatusBadge
-}) => {
-  const [editForm, setEditForm] = useState({
-    creditor: debt.creditor,
-    amount: debt.amount.toString(),
-    status: debt.status
-  });
-
-  const handleSave = () => {
-    onUpdate({
-      creditor: editForm.creditor,
-      amount: parseFloat(editForm.amount),
-      status: editForm.status
+  const openEditDialog = (debt: Debt) => {
+    setEditingDebt(debt);
+    setFormData({
+      creditor: debt.creditor,
+      amount: debt.amount?.toString() || '',
+      status: debt.status || 'pendente'
     });
+    setIsDialogOpen(true);
   };
 
-  if (isEditing) {
+  const openAddDialog = () => {
+    setEditingDebt(null);
+    setFormData({ creditor: '', amount: '', status: 'pendente' });
+    setIsDialogOpen(true);
+  };
+
+  if (loading || isLoading) {
     return (
-      <div className="border rounded-lg p-4 bg-blue-50">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Credor
-            </label>
-            <Input
-              type="text"
-              value={editForm.creditor}
-              onChange={(e) => setEditForm({ ...editForm, creditor: e.target.value })}
-            />
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando...</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Valor
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              value={editForm.amount}
-              onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              value={editForm.status}
-              onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="pendente">Pendente</option>
-              <option value="atrasada">Atrasada</option>
-              <option value="em_negociacao">Em Negociação</option>
-              <option value="quitada">Quitada</option>
-            </select>
-          </div>
-        </div>
-        <div className="flex space-x-2">
-          <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700">
-            <Save className="w-4 h-4 mr-2" />
-            Salvar
-          </Button>
-          <Button onClick={onCancelEdit} variant="outline" size="sm">
-            <X className="w-4 h-4 mr-2" />
-            Cancelar
-          </Button>
         </div>
       </div>
     );
   }
 
+  if (!isAuthenticated || !isAdmin || !user) {
+    return null;
+  }
+
   return (
-    <div className="border rounded-lg p-4 hover:bg-gray-50">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <div className="flex items-center space-x-4 mb-2">
-            <h4 className="font-semibold text-lg">{debt.creditor}</h4>
-            {getStatusBadge(debt.status)}
-          </div>
-          <div className="text-2xl font-bold text-red-600 mb-2">
-            {formatCurrency(debt.amount)}
-          </div>
-          <p className="text-sm text-gray-600">
-            Cadastrado em: {new Date(debt.created_at).toLocaleDateString('pt-BR')}
-          </p>
-        </div>
-        <div className="flex space-x-2">
-          <Button onClick={onEdit} variant="outline" size="sm">
-            <Edit className="w-4 h-4" />
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/admin/user/${userId}`)}
+            className="mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar aos Detalhes
           </Button>
-          <Button onClick={onDelete} variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Gerenciar Dívidas - {user.name}
+              </h1>
+              <p className="text-gray-600">
+                CPF: {user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
+              </p>
+            </div>
+            
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openAddDialog} className="bg-green-600 hover:bg-green-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Dívida
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingDebt ? 'Editar Dívida' : 'Adicionar Nova Dívida'}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="creditor">Credor</Label>
+                    <Input
+                      id="creditor"
+                      value={formData.creditor}
+                      onChange={(e) => setFormData({...formData, creditor: e.target.value})}
+                      placeholder="Nome do credor"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="amount">Valor</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                      placeholder="0,00"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                        <SelectItem value="em_analise">Em Análise</SelectItem>
+                        <SelectItem value="negociando">Negociando</SelectItem>
+                        <SelectItem value="quitada">Quitada</SelectItem>
+                        <SelectItem value="cancelada">Cancelada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit">
+                      {editingDebt ? 'Atualizar' : 'Adicionar'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CreditCard className="w-5 h-5 mr-2" />
+              Dívidas Cadastradas ({debts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {debts.length > 0 ? (
+              <div className="space-y-4">
+                {debts.map((debt) => (
+                  <div key={debt.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg">{debt.creditor}</h3>
+                        <p className="text-2xl font-bold text-red-600">
+                          R$ {debt.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Cadastrada em: {new Date(debt.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline">
+                          {debt.status || 'pendente'}
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(debt)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(debt.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <CreditCard className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma dívida cadastrada</h3>
+                <p className="text-gray-600">Clique em "Adicionar Dívida" para começar.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

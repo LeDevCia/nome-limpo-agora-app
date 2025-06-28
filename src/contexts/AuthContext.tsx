@@ -3,15 +3,37 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
+interface UserProfile {
+  id: string;
+  name: string;
+  cpf: string;
+  birth_date: string | null;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  person_type: string;
+  status: string | null;
+  is_admin: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: UserProfile | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
+  login: (email: string, password: string) => Promise<{ error: any }>;
+  logout: () => Promise<{ error: any }>;
+  register: (userData: any) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +41,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -34,9 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setTimeout(() => {
             checkAdminStatus(session.user.id);
+            fetchUserProfile(session.user.id);
           }, 0);
         } else {
           setIsAdmin(false);
+          setProfile(null);
         }
         
         setLoading(false);
@@ -52,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (session?.user) {
         checkAdminStatus(session.user.id);
+        fetchUserProfile(session.user.id);
       }
       
       setLoading(false);
@@ -59,6 +85,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
+
+      if (data) {
+        setProfile({
+          ...data,
+          cpf: data.document || data.cpf || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const checkAdminStatus = async (userId: string) => {
     try {
@@ -110,6 +160,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const login = signIn;
+
   const signUp = async (email: string, password: string, userData: any) => {
     const redirectUrl = `${window.location.origin}/`;
     
@@ -120,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           name: userData.name,
-          cpf: userData.cpf,
+          cpf: userData.document,
           birthDate: userData.birthDate,
           phone: userData.phone,
           address: userData.address || '',
@@ -134,26 +186,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const register = async (userData: any) => {
+    try {
+      const { error } = await signUp(userData.email, userData.password, userData);
+      
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: 'Erro inesperado durante o cadastro' };
+    }
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (!error) {
       setUser(null);
       setSession(null);
+      setProfile(null);
       setIsAdmin(false);
       window.location.href = '/';
     }
     return { error };
   };
 
+  const logout = signOut;
+
   const value = {
     user,
     session,
+    profile,
     isAuthenticated: !!user,
     isAdmin,
     loading,
     signIn,
     signUp,
     signOut,
+    login,
+    logout,
+    register,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
