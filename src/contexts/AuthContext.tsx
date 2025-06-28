@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         setProfile({
           ...data,
-          cpf: data.document || data.cpf || '',
+          cpf: data.document || '',
         });
       }
     } catch (error) {

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ const Login = () => {
 
     try {
       const result = await login(email, password);
-      if (result.success) {
+      if (!result.error) {
         console.log('Login successful, admin status:', isAdmin);
         toast({
           title: "Login realizado com sucesso!",
@@ -33,7 +34,7 @@ const Login = () => {
       } else {
         toast({
           title: "Erro no login",
-          description: result.error || "E-mail ou senha incorretos.",
+          description: result.error.message || "E-mail ou senha incorretos.",
           variant: "destructive",
         });
       }

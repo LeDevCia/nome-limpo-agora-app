@@ -58,7 +58,7 @@ const Admin = () => {
       // Map document field to cpf for compatibility
       const usersWithCpf = data?.map(user => ({
         ...user,
-        cpf: user.document || user.cpf || '',
+        cpf: user.document || '',
       })) || [];
 
       setUsers(usersWithCpf);

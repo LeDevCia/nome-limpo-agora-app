@@ -53,7 +53,7 @@ const UserDebts = () => {
       if (data) {
         setUser({
           ...data,
-          cpf: data.document || data.cpf || '',
+          cpf: data.document || '',
         });
       }
     } catch (error) {
@@ -82,7 +82,7 @@ const UserDebts = () => {
       // Map to ensure cpf field exists
       const debtsWithCpf = data?.map(debt => ({
         ...debt,
-        cpf: debt.document || debt.cpf || '',
+        cpf: debt.document || '',
       })) || [];
 
       setDebts(debtsWithCpf);
