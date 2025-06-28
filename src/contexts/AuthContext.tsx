@@ -46,39 +46,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsAuthenticated(!!session);
+        async (event, session) => {
+          console.log('Auth state change:', event, session?.user?.id);
+          setSession(session);
+          setUser(session?.user ?? null);
+          setIsAuthenticated(!!session);
 
-        if (session?.user) {
-          setTimeout(async () => {
-            await fetchUserProfile(session.user.id);
-            const adminStatus = await checkAdminRole(session.user.id);
+          if (session?.user) {
+            setTimeout(async () => {
+              await fetchUserProfile(session.user.id);
+              const adminStatus = await checkAdminRole(session.user.id);
 
-            // Redirecionar baseado no papel do usuário apenas no login
-            if (event === 'SIGNED_IN') {
-              console.log('User signed in, admin status:', adminStatus);
+              // Redirecionar baseado no papel do usuário apenas no login
+              if (event === 'SIGNED_IN') {
+                console.log('User signed in, admin status:', adminStatus);
 
-              const currentPath = window.location.pathname;
+                const currentPath = window.location.pathname;
 
-              if (adminStatus && currentPath !== '/admin') {
-                console.log('Redirecting admin to /admin');
-                window.location.href = '/admin';
-              } else if (!adminStatus && currentPath !== '/dashboard') {
-                console.log('Redirecting user to /dashboard');
-                window.location.href = '/dashboard';
+                if (adminStatus && currentPath !== '/admin') {
+                  console.log('Redirecting admin to /admin');
+                  window.location.href = '/admin';
+                } else if (!adminStatus && currentPath !== '/dashboard') {
+                  console.log('Redirecting user to /dashboard');
+                  window.location.href = '/dashboard';
+                }
               }
-            }
 
-          }, 0);
-        } else {
-          setProfile(null);
-          setIsAdmin(false);
+            }, 0);
+          } else {
+            setProfile(null);
+            setIsAdmin(false);
+          }
+          setLoading(false);
         }
-        setLoading(false);
-      }
     );
 
     // Check for existing session
@@ -103,10 +103,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
       if (error) {
         console.error('Error fetching profile:', error);
@@ -139,11 +139,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Verificar role na tabela user_roles
       const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .single();
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Error checking admin role:', error);
@@ -217,19 +217,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      session,
-      isAdmin,
-      login,
-      register,
-      logout,
-      isAuthenticated,
-      loading
-    }}>
-      {children}
-    </AuthContext.Provider>
+      <AuthContext.Provider value={{
+        user,
+        profile,
+        session,
+        isAdmin,
+        login,
+        register,
+        logout,
+        isAuthenticated,
+        loading
+      }}>
+        {children}
+      </AuthContext.Provider>
   );
 };
 

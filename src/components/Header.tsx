@@ -45,10 +45,6 @@ const Header = () => {
           <nav className="hidden md:flex items-center space-x-6">
             {isAuthenticated ? (
               <>
-                <Link to="/dashboard" className="text-gray-700 hover:text-green-600 transition-colors font-medium flex items-center space-x-1">
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Dashboard</span>
-                </Link>
                 {isAdmin && (
                   <Link to="/admin" className="text-gray-700 hover:text-green-600 transition-colors font-medium flex items-center space-x-1">
                     <Settings className="w-4 h-4" />
@@ -87,12 +83,7 @@ const Header = () => {
           <div className="hidden md:flex items-center space-x-3">
             {isAuthenticated ? (
               <div className="flex items-center space-x-3">
-                <Link to="/dashboard">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                    <User className="w-4 h-4" />
-                    <span>{profile?.name?.split(' ')[0] || 'Usuário'}</span>
-                  </Button>
-                </Link>
+                
                 <Button
                   variant="ghost"
                   size="sm"
@@ -144,7 +135,7 @@ const Header = () => {
                     onClick={closeMobileMenu}
                   >
                     <LayoutDashboard className="w-4 h-4" />
-                    <span>Dashboard</span>
+                    
                   </Link>
                   {isAdmin && (
                     <Link 

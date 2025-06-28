@@ -17,19 +17,16 @@ const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
   return (
     <Link to="/" className={`flex items-center space-x-3 ${className}`}>
       <div className="relative">
-        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-          <span className="text-white font-bold text-xl">NL</span>
+        <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-[3px] border-green-500">
+          <img src="/logo.png" alt="Logo" className="w-12 h-12 rounded-full" />
         </div>
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full"></div>
+        <div className="absolute -top-[1px] -right-[-1px] w-4 h-4 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full"></div>
       </div>
-      <div>
-        <h1 className={`${sizeClasses[size]} font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent`}>
-          Nome Limpo Agora
-        </h1>
-        <p className="text-xs text-gray-600 font-medium">
-          Nome sujo não combina com você!
-        </p>
-      </div>
+
+      <span className="font-bold text-gray-800 dark:text-white transition-colors duration-300 ${sizeClasses[size] || sizeClasses.md}">
+        <span className="text-green-500">NOME</span> <span className="text-yellow-500">LIMPO</span>
+      </span>
+
     </Link>
   );
 };

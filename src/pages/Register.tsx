@@ -12,8 +12,9 @@ import { ArrowLeft, Shield, Lock } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
+    personType: 'fisica' as 'fisica' | 'juridica',
     name: '',
-    cpf: '',
+    document: '',
     birthDate: '',
     email: '',
     phone: '',
@@ -32,7 +33,7 @@ const Register = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
@@ -45,6 +46,16 @@ const Register = () => {
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  };
+
+  const formatCNPJ = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{2})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1/$2')
+      .replace(/(\d{4})(\d{1,2})/, '$1-$2')
       .replace(/(-\d{2})\d+?$/, '$1');
   };
 
@@ -63,9 +74,9 @@ const Register = () => {
       .replace(/(-\d{3})\d+?$/, '$1');
   };
 
-  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCPF(e.target.value);
-    setFormData(prev => ({ ...prev, cpf: formatted }));
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formData.personType === 'fisica' ? formatCPF(e.target.value) : formatCNPJ(e.target.value);
+    setFormData(prev => ({ ...prev, document: formatted }));
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,7 +99,7 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!acceptedTerms || !acceptedLGPD) {
       toast({
         title: "Erro no cadastro",
@@ -107,10 +118,29 @@ const Register = () => {
       return;
     }
 
+    // Validate document length (CPF: 11 digits, CNPJ: 14 digits)
+    const cleanDocument = formData.document.replace(/\D/g, '');
+    if (formData.personType === 'fisica' && cleanDocument.length !== 11) {
+      toast({
+        title: "Erro no cadastro",
+        description: "O CPF deve conter 11 dígitos.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (formData.personType === 'juridica' && cleanDocument.length !== 14) {
+      toast({
+        title: "Erro no cadastro",
+        description: "O CNPJ deve conter 14 dígitos.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
-      const result = await register(formData);
+      const result = await register({ ...formData, document: cleanDocument });
       if (result.success) {
         toast({
           title: "Cadastro realizado com sucesso!",
@@ -163,9 +193,24 @@ const Register = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <Label htmlFor="personType">Tipo de Pessoa *</Label>
+                  <select
+                    id="personType"
+                    name="personType"
+                    value={formData.personType}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                  >
+                    <option value="fisica">Pessoa Física</option>
+                    <option value="juridica">Pessoa Jurídica</option>
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">Nome Completo *</Label>
+                    <Label htmlFor="name">{formData.personType === 'fisica' ? 'Nome Completo' : 'Razão Social'} *</Label>
                     <Input
                       id="name"
                       name="name"
@@ -173,28 +218,28 @@ const Register = () => {
                       required
                       value={formData.name}
                       onChange={handleChange}
-                      placeholder="Digite seu nome completo"
+                      placeholder={formData.personType === 'fisica' ? 'Digite seu nome completo' : 'Digite a razão social'}
                     />
                   </div>
                   
                   <div>
-                    <Label htmlFor="cpf">CPF *</Label>
+                    <Label htmlFor="document">{formData.personType === 'fisica' ? 'CPF' : 'CNPJ'} *</Label>
                     <Input
-                      id="cpf"
-                      name="cpf"
+                      id="document"
+                      name="document"
                       type="text"
                       required
-                      value={formData.cpf}
-                      onChange={handleCPFChange}
-                      placeholder="000.000.000-00"
-                      maxLength={14}
+                      value={formData.document}
+                      onChange={handleDocumentChange}
+                      placeholder={formData.personType === 'fisica' ? '000.000.000-00' : '00.000.000/0000-00'}
+                      maxLength={formData.personType === 'fisica' ? 14 : 18}
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="birthDate">Data de Nascimento *</Label>
+                    <Label htmlFor="birthDate">{formData.personType === 'fisica' ? 'Data de Nascimento' : 'Data de Fundação'} *</Label>
                     <Input
                       id="birthDate"
                       name="birthDate"
@@ -328,7 +373,7 @@ const Register = () => {
                         Proteção de Dados (LGPD)
                       </h3>
                       <p className="text-sm text-blue-800 leading-relaxed">
-                        Seus dados pessoais serão utilizados exclusivamente para consulta do CPF, 
+                        Seus dados pessoais serão utilizados exclusivamente para consulta do {formData.personType === 'fisica' ? 'CPF' : 'CNPJ'}, 
                         análise da situação financeira e negociação de débitos. Não compartilhamos 
                         suas informações com terceiros sem autorização prévia.
                       </p>
@@ -344,7 +389,7 @@ const Register = () => {
                         className="mt-1"
                       />
                       <Label htmlFor="lgpd" className="text-sm text-blue-800 leading-relaxed">
-                        Autorizo a consulta do meu CPF e o uso dos meus dados para análise financeira 
+                        Autorizo a consulta do meu {formData.personType === 'fisica' ? 'CPF' : 'CNPJ'} e o uso dos meus dados para análise financeira 
                         e negociação de débitos, conforme descrito na{' '}
                         <Link to="/privacidade" className="text-blue-600 hover:underline font-medium">
                           Política de Privacidade

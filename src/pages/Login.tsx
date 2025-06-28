@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,34 +14,35 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAdmin } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       const result = await login(email, password);
       if (result.success) {
+        console.log('Login successful, admin status:', isAdmin);
         toast({
           title: "Login realizado com sucesso!",
           description: "Bem-vindo de volta ao Nome Limpo Agora.",
         });
-        navigate('/dashboard');
+        // Não redirecionar aqui; deixar o AuthContext lidar com o redirecionamento
       } else {
         toast({
           title: "Erro no login",
           description: result.error || "E-mail ou senha incorretos.",
-          variant: "destructive"
+          variant: "destructive",
         });
       }
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Erro no login",
         description: "Ocorreu um erro ao fazer login. Tente novamente.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
