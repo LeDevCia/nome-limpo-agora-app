@@ -30,7 +30,10 @@
       "debts": [
         { "creditor": "Santander", "amount": 3750.60, "status": "em_negociacao" },
         { "creditor": "Cartão Mastercard", "amount": 2100.45, "status": "atrasada" },
-        { "creditor": "Financeira ABC", "amount": 800.15, "status": "pendente" }
+        { "creditor": "Financeira ABC", "amount": 800.15, "status": "pendente" },
+        { "creditor": "Banco do Brasil", "amount": 2500.75, "status": "pendente" },
+        { "creditor": "Financeira XPTO", "amount": 1800.50, "status": "atrasada" },
+        { "creditor": "Cartão Visa", "amount": 950.30, "status": "em_negociacao" }
       ]
     },
     {
