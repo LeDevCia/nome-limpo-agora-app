@@ -239,7 +239,7 @@ const Dashboard = () => {
               <CardContent className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-600">CPF</p>
-                  <p className="font-medium">{profile?.cpf}</p>
+                  <p className="font-medium">{profile?.document}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">E-mail</p>

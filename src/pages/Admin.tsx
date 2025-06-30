@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,13 +54,7 @@ const Admin = () => {
         return;
       }
 
-      // Map document field to cpf for compatibility
-      const usersWithCpf = data?.map(user => ({
-        ...user,
-        cpf: user.document || '',
-      })) || [];
-
-      setUsers(usersWithCpf);
+      setUsers(data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -97,7 +90,7 @@ const Admin = () => {
   const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.cpf.includes(searchTerm.replace(/\D/g, ''))
+    user.document.includes(searchTerm.replace(/\D/g, ''))
   );
 
   const getStatusBadge = (status: string | null) => {
@@ -228,7 +221,7 @@ const Admin = () => {
                       <td className="py-3 px-4 font-medium">{user.name}</td>
                       <td className="py-3 px-4 text-gray-600">{user.email}</td>
                       <td className="py-3 px-4 text-gray-600">
-                        {user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
+                        {user.document ? user.document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
                       </td>
                       <td className="py-3 px-4">
                         {getStatusBadge(user.status)}

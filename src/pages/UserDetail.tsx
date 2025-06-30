@@ -51,10 +51,7 @@ const UserDetail = () => {
       }
 
       if (data) {
-        setUser({
-          ...data,
-          cpf: data.document || '',
-        });
+        setUser(data);
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -75,13 +72,7 @@ const UserDetail = () => {
         return;
       }
 
-      // Map to ensure cpf field exists
-      const debtsWithCpf = data?.map(debt => ({
-        ...debt,
-        cpf: debt.document || '',
-      })) || [];
-
-      setDebts(debtsWithCpf);
+      setDebts(data || []);
     } catch (error) {
       console.error('Error fetching debts:', error);
     }
@@ -180,7 +171,7 @@ const UserDetail = () => {
               <div className="flex items-center space-x-2">
                 <FileText className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">CPF:</span>
-                <span>{user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}</span>
+                <span>{user.document ? user.document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}</span>
               </div>
               
               <div className="flex items-center space-x-2">

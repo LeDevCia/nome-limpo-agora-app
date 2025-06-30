@@ -51,10 +51,7 @@ const UserDebts = () => {
       }
 
       if (data) {
-        setUser({
-          ...data,
-          cpf: data.document || '',
-        });
+        setUser(data);
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -79,13 +76,7 @@ const UserDebts = () => {
         return;
       }
 
-      // Map to ensure cpf field exists
-      const debtsWithCpf = data?.map(debt => ({
-        ...debt,
-        cpf: debt.document || '',
-      })) || [];
-
-      setDebts(debtsWithCpf);
+      setDebts(data || []);
     } catch (error) {
       console.error('Error fetching debts:', error);
     } finally {
@@ -149,7 +140,7 @@ const UserDebts = () => {
                 Dívidas de {user.name}
               </h1>
               <p className="text-gray-600">
-                CPF: {user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
+                CPF: {user.document ? user.document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
               </p>
             </div>
             <Button
@@ -216,9 +207,9 @@ const UserDebts = () => {
                       </div>
                     </div>
                     
-                    {debt.cpf && (
+                    {debt.document && (
                       <div className="text-sm text-gray-600">
-                        <p>CPF: {debt.cpf}</p>
+                        <p>CPF: {debt.document}</p>
                       </div>
                     )}
                   </div>

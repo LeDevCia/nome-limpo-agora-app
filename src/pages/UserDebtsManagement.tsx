@@ -63,10 +63,7 @@ const UserDebtsManagement = () => {
       }
 
       if (data) {
-        setUser({
-          ...data,
-          cpf: data.document || '',
-        });
+        setUser(data);
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -86,13 +83,7 @@ const UserDebtsManagement = () => {
         return;
       }
 
-      // Map to ensure cpf field exists
-      const debtsWithCpf = data?.map(debt => ({
-        ...debt,
-        cpf: debt.document || '',
-      })) || [];
-
-      setDebts(debtsWithCpf);
+      setDebts(data || []);
     } catch (error) {
       console.error('Error fetching debts:', error);
     } finally {
@@ -106,7 +97,7 @@ const UserDebtsManagement = () => {
     try {
       const debtData = {
         user_id: userId,
-        cpf: user?.cpf || '',
+        document: user?.document || '',
         creditor: formData.creditor,
         amount: parseFloat(formData.amount),
         status: formData.status
@@ -243,7 +234,7 @@ const UserDebtsManagement = () => {
                 Gerenciar Dívidas - {user.name}
               </h1>
               <p className="text-gray-600">
-                CPF: {user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
+                CPF: {user.document ? user.document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
               </p>
             </div>
             
