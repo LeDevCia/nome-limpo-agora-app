@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +20,17 @@ interface ContactMessage {
   message: string;
   status: string;
   created_at: string;
+}
+
+interface Debt {
+  id: string;
+  cpf: string | null;
+  cnpj: string | null;
+  amount: number;
+  creditor: string;
+  due_date: string;
+  status: string;
+  description: string;
 }
 
 interface Stats {
@@ -156,12 +166,10 @@ export const AdminComponents = () => {
         return;
       }
 
-      // Update local state
       setUsers(users.map(user => 
         user.id === userId ? { ...user, status: newStatus } : user
       ));
 
-      // Update stats
       fetchStats();
 
       toast({
@@ -190,7 +198,6 @@ export const AdminComponents = () => {
         return;
       }
 
-      // Update local state
       setMessages(messages.map(message => 
         message.id === messageId ? { ...message, status: newStatus } : message
       ));
@@ -208,15 +215,64 @@ export const AdminComponents = () => {
     setAnalyzingUser(userId);
     
     try {
-      // Simulate debt analysis
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // Fazer requisição à API fake para buscar dívidas
+      const response = await fetch(`http://localhost:3000/api/debts?cpf=${document}`);
+      const result = await response.json();
+
+      console.log('Resposta da API de dívidas:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao buscar dívidas');
+      }
+
+      const debts: Debt[] = result.data;
+
+      // Atualizar status do usuário para 'em_analise'
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ status: 'em_analise' })
+        .eq('id', userId);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      // Inserir dívidas no Supabase
+      if (debts.length > 0) {
+        const { error: debtError } = await supabase.from('debts').insert(
+          debts.map(debt => ({
+            user_id: userId,
+            amount: debt.amount,
+            creditor: debt.creditor,
+            due_date: debt.due_date,
+            status: debt.status,
+            description: debt.description,
+            created_at: new Date().toISOString(),
+          }))
+        );
+
+        if (debtError) {
+          throw debtError;
+        }
+      }
+
+      // Atualizar estado local dos usuários
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, status: 'em_analise' } : user
+      ));
+
+      // Atualizar estatísticas
+      fetchStats();
+
       toast({
         title: "Análise Concluída",
-        description: "Análise de dívidas realizada com sucesso",
+        description: `Análise de dívidas realizada com sucesso. Encontradas ${debts.length} dívidas.`,
       });
+
+      // Redirecionar para a página de detalhes do usuário
+      navigate(`/admin/user/${userId}`);
     } catch (error) {
-      console.error('Error analyzing debts:', error);
+      console.error('Erro ao analisar dívidas:', error);
       toast({
         title: "Erro",
         description: "Erro ao analisar dívidas",
@@ -248,7 +304,6 @@ export const AdminComponents = () => {
         return;
       }
 
-      // Update local state
       setUsers(users.filter(user => user.id !== userId));
       fetchStats();
 
