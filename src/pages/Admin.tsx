@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +51,19 @@ const Admin = () => {
   if (!isAuthenticated || !isAdmin) {
     return null;
   }
+
+  // Função para formatar CPF ou CNPJ
+  const formatDocument = (document: string) => {
+    const cleaned = document.replace(/\D/g, '');
+    if (cleaned.length === 11) {
+      // Formatar CPF: 123.456.789-00
+      return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    } else if (cleaned.length === 14) {
+      // Formatar CNPJ: 12.345.678/0001-99
+      return cleaned.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+    return document;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -166,7 +178,7 @@ const Admin = () => {
                     <div className="relative">
                       <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                          placeholder="Buscar por nome, CPF ou email..."
+                          placeholder="Buscar por nome, CPF, CNPJ ou email..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           className="pl-10"
@@ -205,7 +217,7 @@ const Admin = () => {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Nome</TableHead>
-                            <TableHead>CPF</TableHead>
+                            <TableHead>Documento</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Telefone</TableHead>
                             <TableHead>Status</TableHead>
@@ -217,7 +229,7 @@ const Admin = () => {
                           {filteredUsers.map((user) => (
                               <TableRow key={user.id}>
                                 <TableCell className="font-medium">{user.name}</TableCell>
-                                <TableCell>{user.document ? user.document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}</TableCell>
+                                <TableCell>{user.document ? formatDocument(user.document) : '-'}</TableCell>
                                 <TableCell>{user.email}</TableCell>
                                 <TableCell>{user.phone}</TableCell>
                                 <TableCell>{getStatusBadge(user.status)}</TableCell>
