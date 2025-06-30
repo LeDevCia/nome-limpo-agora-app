@@ -30,7 +30,6 @@ interface Debt {
   creditor: string;
   due_date: string;
   status: string;
-  description: string;
 }
 
 interface Stats {
