@@ -245,8 +245,7 @@ export const AdminComponents = () => {
             amount: debt.amount,
             creditor: debt.creditor,
             due_date: debt.due_date,
-            status: debt.status,
-            description: debt.description,
+            status: debt.status,   
             created_at: new Date().toISOString(),
           }))
         );
