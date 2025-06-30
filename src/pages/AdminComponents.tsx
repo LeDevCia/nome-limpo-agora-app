@@ -30,6 +30,7 @@ interface Debt {
   creditor: string;
   due_date: string;
   status: string;
+  description: string;
 }
 
 interface Stats {
@@ -212,10 +213,16 @@ export const AdminComponents = () => {
 
   const analyzeUserDebts = async (userId: string, document: string) => {
     setAnalyzingUser(userId);
-    
+
     try {
-      // Fazer requisição à API fake para buscar dívidas
-      const response = await fetch(`http://localhost:3000/api/debts?cpf=${document}`);
+      // Normalizar o documento no frontend
+      const normalizedDocument = document.replace(/[\.\-\/]/g, '');
+      const isCpf = normalizedDocument.length === 11;
+      const queryParam = isCpf ? `cpf=${document}` : `cnpj=${document}`;
+      console.log('Enviando requisição com document:', document, 'Normalized:', normalizedDocument, 'Query:', queryParam);
+
+      // Fazer requisição à API
+      const response = await fetch(`http://localhost:3000/api/debts?${queryParam}`);
       const result = await response.json();
 
       console.log('Resposta da API de dívidas:', result);
@@ -226,44 +233,47 @@ export const AdminComponents = () => {
 
       const debts: Debt[] = result.data;
 
+      // Deletar dívidas existentes para o user_id
+      const { error: deleteError } = await supabase
+        .from('debts')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+
       // Atualizar status do usuário para 'em_analise'
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ status: 'em_analise' })
         .eq('id', userId);
 
-      if (profileError) {
-        throw profileError;
-      }
+      if (profileError) throw profileError;
 
-      // Inserir dívidas no Supabase
+      // Inserir novas dívidas no Supabase
       if (debts.length > 0) {
         const { error: debtError } = await supabase.from('debts').insert(
           debts.map(debt => ({
             user_id: userId,
+            document: isCpf ? debt.cpf : debt.cnpj, // Inclui a coluna document
             amount: debt.amount,
             creditor: debt.creditor,
-            due_date: debt.due_date,
-            status: debt.status,   
+            due_date: new Date(debt.due_date).toISOString().split('T')[0],
+            status: debt.status,
             created_at: new Date().toISOString(),
           }))
         );
 
-        if (debtError) {
-          throw debtError;
-        }
+        if (debtError) throw debtError;
       }
 
-      // Atualizar estado local dos usuários
+      // Atualizar estado local
       setUsers(users.map(user => 
         user.id === userId ? { ...user, status: 'em_analise' } : user
       ));
-
-      // Atualizar estatísticas
       fetchStats();
 
       toast({
-        title: "Análise Concluída",
+        title: 'Análise Concluída',
         description: `Análise de dívidas realizada com sucesso. Encontradas ${debts.length} dívidas.`,
       });
 
@@ -272,9 +282,9 @@ export const AdminComponents = () => {
     } catch (error) {
       console.error('Erro ao analisar dívidas:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao analisar dívidas",
-        variant: "destructive"
+        title: 'Erro',
+        description: 'Erro ao analisar dívidas do usuário: ' + (error.message || 'Erro desconhecido'),
+        variant: 'destructive',
       });
     } finally {
       setAnalyzingUser(null);
@@ -295,9 +305,9 @@ export const AdminComponents = () => {
       if (error) {
         console.error('Error deleting user:', error);
         toast({
-          title: "Erro",
-          description: "Erro ao excluir usuário",
-          variant: "destructive"
+          title: 'Erro',
+          description: 'Erro ao excluir usuário',
+          variant: 'destructive'
         });
         return;
       }
@@ -306,8 +316,8 @@ export const AdminComponents = () => {
       fetchStats();
 
       toast({
-        title: "Sucesso",
-        description: "Usuário excluído com sucesso",
+        title: 'Sucesso',
+        description: 'Usuário excluído com sucesso',
       });
     } catch (error) {
       console.error('Error deleting user:', error);
