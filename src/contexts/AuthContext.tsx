@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -6,7 +5,7 @@ import { User, Session } from '@supabase/supabase-js';
 interface UserProfile {
   id: string;
   name: string;
-  cpf: string;
+  document: string; // Changed from cpf to document to match database
   birth_date: string | null;
   email: string;
   phone: string;
@@ -100,10 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data) {
-        setProfile({
-          ...data,
-          cpf: data.document || '',
-        });
+        setProfile(data); // Use data directly since document field is already correct
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -172,13 +168,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           name: userData.name,
-          cpf: userData.document,
+          document: userData.document, // Changed from cpf to document
           birthDate: userData.birthDate,
           phone: userData.phone,
           address: userData.address || '',
           city: userData.city || '',
           state: userData.state || '',
-          zipCode: userData.zipCode || ''
+          zipCode: userData.zipCode || '',
+          personType: userData.personType || 'fisica'
         }
       }
     });

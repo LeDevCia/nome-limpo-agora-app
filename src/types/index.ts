@@ -2,7 +2,7 @@
 export interface UserProfile {
   id: string;
   name: string;
-  cpf: string;
+  document: string; // Changed from cpf to document to match database
   birth_date: string | null;
   email: string;
   phone: string;
@@ -20,7 +20,7 @@ export interface UserProfile {
 export interface Debt {
   id: string;
   user_id: string;
-  cpf: string;
+  document: string; // Changed from cpf to document to match database
   creditor: string;
   amount: number;
   status: string;
