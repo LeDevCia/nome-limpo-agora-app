@@ -1,29 +1,216 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
-import { 
-  CheckCircle, 
-  Clock, 
-  FileText, 
-  MessageSquare, 
+
+import {
+  CheckCircle,
+  Clock,
+  FileText,
+  MessageSquare,
   CreditCard,
   Upload,
   AlertCircle
 } from 'lucide-react';
 
+interface UserMessage {
+  id: string;
+  user_id: string;
+  admin_id: string | null;
+  message: string;
+  is_admin: boolean;
+  created_at: string;
+}
+
+interface UserDocument {
+  id: string;
+  user_id: string;
+  filename: string;
+  file_url: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+}
+
 const Dashboard = () => {
   const { profile, isAuthenticated } = useAuth();
-  const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
+  const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
+  const [messages, setMessages] = useState<UserMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  useEffect(() => {
+    if (isAuthenticated && profile?.id) {
+      fetchDocuments();
+      fetchMessages();
+    }
+  }, [isAuthenticated, profile]);
+
+  const fetchDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_documents')
+        .select('*')
+        .eq('user_id', profile?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching documents:', error);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao buscar documentos enviados',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setDocuments(data || []);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao buscar documentos enviados',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !profile?.id) return;
+
+    setUploading(true);
+
+    try {
+      for (const file of Array.from(files)) {
+        if (file.size > 5 * 1024 * 1024) {
+          toast({
+            title: 'Erro',
+            description: `O arquivo ${file.name} excede o limite de 5MB`,
+            variant: 'destructive',
+          });
+          continue;
+        }
+
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!allowedTypes.includes(file.type)) {
+          toast({
+            title: 'Erro',
+            description: `Apenas arquivos PDF, JPG e PNG são permitidos para ${file.name}`,
+            variant: 'destructive',
+          });
+          continue;
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${profile.id}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          toast({
+            title: 'Erro',
+            description: `Erro ao fazer upload do documento ${file.name}`,
+            variant: 'destructive',
+          });
+          continue;
+        }
+
+        const { error: insertError } = await supabase
+          .from('user_documents')
+          .insert([{
+            user_id: profile.id,
+            filename: file.name,
+            file_url: fileName,
+            file_type: file.type,
+            file_size: file.size
+          }]);
+
+        if (insertError) {
+          console.error('Error inserting document:', insertError);
+          toast({
+            title: 'Erro',
+            description: `Erro ao salvar o documento ${file.name}`,
+            variant: 'destructive',
+          });
+          continue;
+        }
+
+        toast({
+          title: 'Sucesso',
+          description: `Documento ${file.name} enviado com sucesso`,
+        });
+      }
+
+      fetchDocuments();
+    } catch (error: any) {
+      console.error('Error during upload:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao enviar documentos: ' + (error.message || 'Erro desconhecido'),
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_messages')
+        .select('*')
+        .eq('user_id', profile?.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar mensagens',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !profile?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_messages')
+        .insert([{
+          user_id: profile.id,
+          message: newMessage,
+          is_admin: false
+        }]);
+
+      if (error) throw error;
+
+      setNewMessage('');
+      await fetchMessages();
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao enviar mensagem',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -72,14 +259,6 @@ const Dashboard = () => {
 
   const statusInfo = getStatusInfo(profile?.status || 'pendente');
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      const newFiles = Array.from(files).map(file => file.name);
-      setUploadedDocs(prev => [...prev, ...newFiles]);
-    }
-  };
-
   const mockProposals = [
     {
       creditor: 'Banco XYZ',
@@ -100,7 +279,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -132,9 +311,9 @@ const Dashboard = () => {
                       {statusInfo.progress}% concluído
                     </span>
                   </div>
-                  
+
                   <Progress value={statusInfo.progress} className="w-full" />
-                  
+
                   <p className="text-gray-700">
                     {statusInfo.description}
                   </p>
@@ -185,53 +364,6 @@ const Dashboard = () => {
               </Card>
             )}
 
-            {/* Documents Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Upload className="w-5 h-5" />
-                  <span>Documentos</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="document-upload" className="block text-sm font-medium text-gray-700 mb-2">
-                      Envie documentos adicionais (se solicitado)
-                    </label>
-                    <input
-                      id="document-upload"
-                      type="file"
-                      multiple
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={handleFileUpload}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                    />
-                  </div>
-                  
-                  {uploadedDocs.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        Documentos Enviados:
-                      </h4>
-                      <ul className="space-y-1">
-                        {uploadedDocs.map((doc, index) => (
-                          <li key={index} className="flex items-center space-x-2 text-sm text-gray-600">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span>{doc}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* User Info Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Suas Informações</CardTitle>
@@ -252,13 +384,130 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Documents Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Upload className="w-5 h-5" />
+                  <span>Documentos</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="document-upload" className="block text-sm font-medium text-gray-700 mb-2">
+                      Envie documentos adicionais (se solicitado)
+                    </label>
+                    <input
+                      id="document-upload"
+                      type="file"
+                      multiple
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Arquivos aceitos: PDF, JPG, PNG (máximo 5MB)
+                    </p>
+                  </div>
+
+
+                  {documents.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">
+                        Documentos Enviados:
+                      </h4>
+                      <ul className="space-y-1">
+                        {documents.map((doc) => (
+                          <li key={doc.id} className="flex items-center space-x-2 text-sm text-gray-600">
+                            <FileText className="w-4 h-4 text-green-500" />
+                            <span>{doc.document_filename || 'Documento sem nome'}</span>
+                            <span className="text-xs text-gray-500">
+                              ({new Date(doc.created_at).toLocaleDateString('pt-BR')})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Nenhum documento enviado</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* User Info Card */}
+
+
+            {/* Messages Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <MessageSquare className="w-5 h-5" />
+                  <span>Mensagens</span>
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent className="flex flex-col space-y-4">
+                <div className="flex flex-col gap-2 max-h-64 overflow-y-auto px-1">
+                  {messages.length > 0 ? (
+                    messages.map((msg) => {
+                      const isAdmin = msg.is_admin;
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm shadow 
+                ${isAdmin ? 'self-start bg-gray-200 rounded-bl-none text-black' : 'self-end bg-green-100 rounded-br-none text-black'}`}
+                        >
+                          <div className="flex items-center justify-between mb-1 text-xs">
+                            <span className={isAdmin ? 'text-blue-700 font-semibold' : 'text-green-700 font-semibold'}>
+                              {isAdmin ? 'Admin' : 'Você'}
+                            </span>
+                            <span className="text-gray-500">
+                              {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          <p>{msg.message}</p>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">Nenhuma mensagem ainda</p>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Digite sua mensagem..."
+                    className="flex-1 border rounded-full px-4 py-2 text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  />
+                  <Button onClick={sendMessage} size="sm">
+                    Enviar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+
             {/* Quick Actions */}
             <Card>
               <CardHeader>
                 <CardTitle>Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <a 
+                <a
                   href="https://wa.me/5511999999999?text=Olá! Preciso de ajuda com meu processo no Nome Limpo Agora."
                   target="_blank"
                   rel="noopener noreferrer"
@@ -269,7 +518,7 @@ const Dashboard = () => {
                     <span>Falar no WhatsApp</span>
                   </Button>
                 </a>
-                
+
                 <Link to="/beneficios">
                   <Button variant="outline" className="w-full flex items-center space-x-2">
                     <CreditCard className="w-4 h-4" />
