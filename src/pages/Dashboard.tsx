@@ -626,9 +626,6 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
-            
-
             {/* Next Steps */}
             {profile.status === 'finalizado' && (
               <Card className="border-green-200 bg-green-50">

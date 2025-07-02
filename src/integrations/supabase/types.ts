@@ -13,6 +13,8 @@ export type Database = {
         Row: {
           admin_notes: string | null
           created_at: string
+          document_filename: string | null
+          document_url: string | null
           email: string
           id: string
           message: string
@@ -24,6 +26,8 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           created_at?: string
+          document_filename?: string | null
+          document_url?: string | null
           email: string
           id?: string
           message: string
@@ -35,6 +39,8 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           created_at?: string
+          document_filename?: string | null
+          document_url?: string | null
           email?: string
           id?: string
           message?: string
@@ -51,6 +57,7 @@ export type Database = {
           created_at: string | null
           creditor: string | null
           document: string | null
+          due_date: string
           id: string
           status: string | null
           user_id: string | null
@@ -60,6 +67,7 @@ export type Database = {
           created_at?: string | null
           creditor?: string | null
           document?: string | null
+          due_date?: string
           id?: string
           status?: string | null
           user_id?: string | null
@@ -69,6 +77,7 @@ export type Database = {
           created_at?: string | null
           creditor?: string | null
           document?: string | null
+          due_date?: string
           id?: string
           status?: string | null
           user_id?: string | null
@@ -137,6 +146,63 @@ export type Database = {
         }
         Relationships: []
       }
+      user_documents: {
+        Row: {
+          created_at: string
+          file_size: number
+          file_type: string
+          file_url: string
+          filename: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_size: number
+          file_type: string
+          file_url: string
+          filename: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          filename?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_messages: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          id: string
+          is_admin: boolean
+          message: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          message: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          message?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -155,6 +221,33 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      users_documents: {
+        Row: {
+          created_at: string | null
+          document_filename: string | null
+          document_url: string | null
+          id: string
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_filename?: string | null
+          document_url?: string | null
+          id?: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_filename?: string | null
+          document_url?: string | null
+          id?: string
+          status?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
