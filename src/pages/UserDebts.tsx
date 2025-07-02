@@ -41,7 +41,6 @@ const UserDebts = () => {
         .single();
 
       if (error) {
-        console.error('Error fetching user:', error);
         toast({
           title: "Erro",
           description: "Erro ao carregar dados do usuário",
@@ -54,7 +53,7 @@ const UserDebts = () => {
         setUser(data);
       }
     } catch (error) {
-      console.error('Error fetching user:', error);
+      // Erro silencioso
     }
   };
 
@@ -67,7 +66,6 @@ const UserDebts = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching debts:', error);
         toast({
           title: "Erro",
           description: "Erro ao carregar dívidas",
@@ -78,7 +76,7 @@ const UserDebts = () => {
 
       setDebts(data || []);
     } catch (error) {
-      console.error('Error fetching debts:', error);
+      // Erro silencioso
     } finally {
       setIsLoading(false);
     }

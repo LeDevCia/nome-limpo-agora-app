@@ -53,7 +53,6 @@ const UserDebtsManagement = () => {
         .single();
 
       if (error) {
-        console.error('Error fetching user:', error);
         toast({
           title: "Erro",
           description: "Erro ao carregar dados do usuário",
@@ -66,7 +65,7 @@ const UserDebtsManagement = () => {
         setUser(data);
       }
     } catch (error) {
-      console.error('Error fetching user:', error);
+      // Erro silencioso
     }
   };
 
@@ -79,13 +78,12 @@ const UserDebtsManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching debts:', error);
         return;
       }
 
       setDebts(data || []);
     } catch (error) {
-      console.error('Error fetching debts:', error);
+      // Erro silencioso
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +135,6 @@ const UserDebtsManagement = () => {
       setFormData({ creditor: '', amount: '', status: 'pendente' });
       fetchUserDebts();
     } catch (error) {
-      console.error('Error saving debt:', error);
       toast({
         title: "Erro",
         description: "Erro ao salvar dívida",
@@ -168,7 +165,6 @@ const UserDebtsManagement = () => {
       
       fetchUserDebts();
     } catch (error) {
-      console.error('Error deleting debt:', error);
       toast({
         title: "Erro",
         description: "Erro ao excluir dívida",

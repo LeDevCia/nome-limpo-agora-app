@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -68,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Se há erro de sessão que não seja simplesmente ausência de sessão
         if (sessionError) {
-          console.error('Erro ao buscar sessão:', sessionError);
           if (isMounted) {
             setSession(null);
             setUser(null);
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Erro ao buscar perfil:', profileError);
+          // Erro silencioso - não logamos mais no console
         } else {
           setProfile(profileData || null);
         }
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           hasRedirected = true;
         }
       } catch (error) {
-        console.error('Erro inesperado no fetchSessionAndProfile:', error);
+        // Erro silencioso - não logamos mais no console
       } finally {
         if (isMounted) setLoading(false);
       }
