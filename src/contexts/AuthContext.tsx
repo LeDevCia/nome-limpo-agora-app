@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -54,7 +55,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (sessionError || !session) {
+        // Se não há sessão válida, não é um erro - apenas significa que o usuário não está logado
+        if (!session) {
+          if (isMounted) {
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            setIsAdmin(false);
+          }
+          return;
+        }
+
+        // Se há erro de sessão que não seja simplesmente ausência de sessão
+        if (sessionError) {
           console.error('Erro ao buscar sessão:', sessionError);
           if (isMounted) {
             setSession(null);
