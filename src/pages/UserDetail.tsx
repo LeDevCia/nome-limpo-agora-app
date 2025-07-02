@@ -17,7 +17,8 @@ import {
   CreditCard,
   Download,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Trash
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { UserProfile, Debt } from '@/types';
@@ -271,6 +272,44 @@ const UserDetail = () => {
     return null;
   }
 
+  function handleDeleteDocument(id: string): void {
+    toast({
+      title: 'Confirmação',
+      description: 'Você tem certeza que deseja excluir este documento?',
+      variant: 'destructive',
+      action: (
+        <Button
+          variant="destructive"
+          onClick={() => deleteDocument(id)}
+          size="sm"
+        >
+          Excluir
+        </Button>
+      ),
+    });
+  }
+
+  function deleteDocument(id: string): void {
+    supabase
+      .from('user_documents')
+      .delete()
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Erro ao excluir documento:', error);
+          toast({
+            title: 'Erro',
+            description: 'Erro ao excluir documento',
+            variant: 'destructive',
+          });
+        } else {
+          setDocuments(documents.filter(doc => doc.id !== id));
+          toast({ title: 'Sucesso', description: 'Documento excluído com sucesso' });
+        }
+      });
+    
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -506,6 +545,15 @@ const UserDetail = () => {
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Baixar
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteDocument(doc.id)}
+                        >
+                          <Trash className="w-4 h-4 mr-2" />
+                          Deletar
                         </Button>
                       </div>
                       {previewUrls[doc.id] && (

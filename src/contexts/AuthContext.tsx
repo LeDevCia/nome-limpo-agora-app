@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
 
 interface UserProfile {
   id: string;
   name: string;
-  document: string; // Changed from cpf to document to match database
+  document: string;
   birth_date: string | null;
   email: string;
   phone: string;
@@ -15,7 +16,6 @@ interface UserProfile {
   zip_code: string;
   person_type: string;
   status: string | null;
-  is_admin: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,114 +43,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.info('Auth state change:', event, session?.user ? { id: session.user.id, email: session.user.email } : 'No user');
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            checkAdminStatus(session.user.id);
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setIsAdmin(false);
-          setProfile(null);
-        }
-        
-        setLoading(false);
-      }
-    );
+    let isMounted = true;
+    let hasRedirected = false;
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.info('Initial session check:', session?.user ? { id: session.user.id, email: session.user.email } : 'No session');
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        checkAdminStatus(session.user.id);
-        fetchUserProfile(session.user.id);
+    const fetchSessionAndProfile = async () => {
+      try {
+        setLoading(true);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError || !session) {
+          console.error('Erro ao buscar sessão:', sessionError);
+          if (isMounted) {
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            setIsAdmin(false);
+          }
+          return;
+        }
+
+        const currentUser = session.user;
+        if (!currentUser) return;
+
+        setSession(session);
+        setUser(currentUser);
+
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const isSuperAdmin = userData?.user?.user_metadata?.is_super_admin === true;
+        setIsAdmin(isSuperAdmin);
+
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Erro ao buscar perfil:', profileError);
+        } else {
+          setProfile(profileData || null);
+        }
+
+        const currentPath = window.location.pathname;
+        const publicPaths = ['/', '/login', '/register', '/beneficios', '/contato'];
+
+        if (!hasRedirected && publicPaths.includes(currentPath)) {
+          navigate(isSuperAdmin ? '/admin' : '/dashboard', { replace: true });
+          hasRedirected = true;
+        }
+      } catch (error) {
+        console.error('Erro inesperado no fetchSessionAndProfile:', error);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      
-      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setIsAdmin(false);
+        navigate('/', { replace: true });
+      }
+
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        await fetchSessionAndProfile();
+      }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user profile:', error);
-        return;
-      }
-
-      if (data) {
-        setProfile(data); // Use data directly since document field is already correct
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
-
-  const checkAdminStatus = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking admin status:', error);
-        setIsAdmin(false);
-        return;
-      }
-
-      setIsAdmin(!!data);
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-    }
-  };
+    return () => {
+      isMounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (!error && data.user) {
-      // Redirect based on role after login
-      setTimeout(async () => {
-        await checkAdminStatus(data.user.id);
-        const isUserAdmin = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id)
-          .eq('role', 'admin')
-          .single();
-        
-        if (isUserAdmin.data) {
-          window.location.href = '/admin';
-        } else {
-          window.location.href = '/dashboard';
-        }
-      }, 100);
+      setSession(data.session);
+      setUser(data.user);
+
+      const { data: userData } = await supabase.auth.getUser();
+      const isSuperAdmin = userData?.user?.user_metadata?.is_super_admin === true;
+      setIsAdmin(isSuperAdmin);
+
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      setProfile(profileData || null);
+      navigate(isSuperAdmin ? '/admin' : '/dashboard', { replace: true });
     }
 
     return { error };
@@ -160,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, userData: any) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -168,14 +161,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           name: userData.name,
-          document: userData.document, // Changed from cpf to document
-          birthDate: userData.birthDate,
+          document: userData.document,
+          birth_date: userData.birthDate,
           phone: userData.phone,
           address: userData.address || '',
           city: userData.city || '',
           state: userData.state || '',
-          zipCode: userData.zipCode || '',
-          personType: userData.personType || 'fisica'
+          zip_code: userData.zipCode || '',
+          person_type: userData.personType || 'fisica'
         }
       }
     });
@@ -186,12 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (userData: any) => {
     try {
       const { error } = await signUp(userData.email, userData.password, userData);
-      
-      if (error) {
-        return { success: false, error: error.message };
-      }
-      
-      return { success: true };
+      return error ? { success: false, error: error.message } : { success: true };
     } catch (error) {
       return { success: false, error: 'Erro inesperado durante o cadastro' };
     }
@@ -204,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       setProfile(null);
       setIsAdmin(false);
-      window.location.href = '/';
+      navigate('/', { replace: true });
     }
     return { error };
   };
@@ -231,8 +219,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }

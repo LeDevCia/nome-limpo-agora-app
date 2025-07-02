@@ -16,7 +16,8 @@ import {
   MessageSquare,
   CreditCard,
   Upload,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 
 interface UserMessage {
@@ -39,26 +40,42 @@ interface UserDocument {
 }
 
 const Dashboard = () => {
-  const { profile, isAuthenticated } = useAuth();
+  const { profile, isAuthenticated, isAdmin } = useAuth();
   const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const [messages, setMessages] = useState<UserMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<{url: string, name: string, type: string, id: string}[]>([]);
+
+  // Redirect admins to /admin and handle unauthenticated users
+  if (!isAuthenticated || !profile) {
+    return <Navigate to="/login" replace />;
+  }
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
 
   useEffect(() => {
-    if (isAuthenticated && profile?.id) {
+    if (profile?.id) {
       fetchDocuments();
       fetchMessages();
     }
-  }, [isAuthenticated, profile]);
+  }, [profile]);
+
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach(preview => URL.revokeObjectURL(preview.url));
+    };
+  }, [filePreviews]);
 
   const fetchDocuments = async () => {
     try {
       const { data, error } = await supabase
         .from('user_documents')
         .select('*')
-        .eq('user_id', profile?.id)
+        .eq('user_id', profile.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -82,14 +99,28 @@ const Dashboard = () => {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0 || !profile?.id) return;
+  const handleFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const files = Array.from(event.target.files);
+      setSelectedFiles(files);
+      
+      const newPreviews = files.map(file => ({
+        url: URL.createObjectURL(file),
+        name: file.name,
+        type: file.type,
+        id: Math.random().toString(36).substring(2, 9)
+      }));
+      setFilePreviews(newPreviews);
+    }
+  };
+
+  const handleFileUpload = async (files: File[]) => {
+    if (!files || files.length === 0 || !profile.id) return;
 
     setUploading(true);
 
     try {
-      for (const file of Array.from(files)) {
+      for (const file of files) {
         if (file.size > 5 * 1024 * 1024) {
           toast({
             title: 'Erro',
@@ -145,13 +176,12 @@ const Dashboard = () => {
           });
           continue;
         }
-
-        toast({
-          title: 'Sucesso',
-          description: `Documento ${file.name} enviado com sucesso`,
-        });
       }
 
+      toast({
+        title: 'Sucesso',
+        description: 'Documentos enviados com sucesso',
+      });
       fetchDocuments();
     } catch (error: any) {
       console.error('Error during upload:', error);
@@ -162,7 +192,29 @@ const Dashboard = () => {
       });
     } finally {
       setUploading(false);
+      setSelectedFiles([]);
+      setFilePreviews([]);
+      const fileInput = document.getElementById('document-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
     }
+  };
+
+  const handleCancelUpload = () => {
+    setSelectedFiles([]);
+    setFilePreviews([]);
+    const fileInput = document.getElementById('document-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const removeFilePreview = (id: string) => {
+    setFilePreviews(prev => {
+      const newPreviews = prev.filter(p => p.id !== id);
+      return newPreviews;
+    });
+    setSelectedFiles(prev => {
+      const previewIndex = filePreviews.findIndex(p => p.id === id);
+      return prev.filter((_, index) => index !== previewIndex);
+    });
   };
 
   const fetchMessages = async () => {
@@ -170,7 +222,7 @@ const Dashboard = () => {
       const { data, error } = await supabase
         .from('user_messages')
         .select('*')
-        .eq('user_id', profile?.id)
+        .eq('user_id', profile.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -186,7 +238,7 @@ const Dashboard = () => {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !profile?.id) return;
+    if (!newMessage.trim() || !profile.id) return;
 
     try {
       const { error } = await supabase
@@ -210,7 +262,6 @@ const Dashboard = () => {
       });
     }
   };
-
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -257,7 +308,7 @@ const Dashboard = () => {
     }
   };
 
-  const statusInfo = getStatusInfo(profile?.status || 'pendente');
+  const statusInfo = getStatusInfo(profile.status || 'pendente');
 
   const mockProposals = [
     {
@@ -283,7 +334,7 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Olá, {profile?.name?.split(' ')[0] || 'Usuário'}!
+            Olá, {profile.name?.split(' ')[0] || 'Usuário'}!
           </h1>
           <p className="text-gray-600">
             Acompanhe o progresso da limpeza do seu nome
@@ -322,7 +373,7 @@ const Dashboard = () => {
             </Card>
 
             {/* Proposals Card (only show if available) */}
-            {profile?.status === 'proposals_available' && (
+            {profile.status === 'proposals_available' && (
               <Card>
                 <CardHeader>
                   <CardTitle>Propostas de Quitação</CardTitle>
@@ -370,16 +421,30 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
+                  <p className="text-sm text-gray-600">Nome Completo</p>
+                  <p className="font-medium">{profile.name}</p>
+                </div>
+                <div>
                   <p className="text-sm text-gray-600">CPF</p>
-                  <p className="font-medium">{profile?.document}</p>
+                  <p className="font-medium">{profile.document}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600">Data de Nascimento</p>
+                  <p className="font-medium">{profile.birth_date}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">E-mail</p>
-                  <p className="font-medium">{profile?.email}</p>
+                  <p className="font-medium">{profile.email}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600">Telefone</p>
+                  <p className="font-medium">{profile.phone}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">WhatsApp</p>
-                  <p className="font-medium">{profile?.phone}</p>
+                  <p className="text-sm text-gray-600">Endereço</p>
+                  <p className="font-medium">{profile.address}</p>
                 </div>
               </CardContent>
             </Card>
@@ -403,7 +468,7 @@ const Dashboard = () => {
                       type="file"
                       multiple
                       accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={handleFileUpload}
+                      onChange={handleFileSelection}
                       disabled={uploading}
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                     />
@@ -412,26 +477,90 @@ const Dashboard = () => {
                     </p>
                   </div>
 
+                  {/* File Previews */}
+                  {filePreviews.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <h4 className="text-sm font-medium text-gray-700">Arquivos selecionados:</h4>
+                      <div className="space-y-2">
+                        {filePreviews.map((preview, index) => (
+                          <div key={preview.id} className="flex items-center p-2 border rounded-lg relative">
+                            {preview.type.startsWith('image/') ? (
+                              <img 
+                                src={preview.url} 
+                                alt={preview.name} 
+                                className="w-12 h-12 object-cover rounded mr-3"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-100 flex items-center justify-center rounded mr-3">
+                                <FileText className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{preview.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {preview.type.split('/')[1].toUpperCase()} • {(selectedFiles[index]?.size / 1024).toFixed(2)} KB
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => removeFilePreview(preview.id)}
+                              className="absolute top-1 right-1 p-1 rounded-full hover:bg-gray-100"
+                            >
+                              <X className="w-4 h-4 text-gray-500" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
 
-                  {documents.length > 0 ? (
-                    <div>
+                      <div className="flex justify-end space-x-2 pt-2">
+                        <Button
+                          variant="outline"
+                          onClick={handleCancelUpload}
+                          disabled={uploading}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          onClick={() => handleFileUpload(selectedFiles)}
+                          disabled={uploading || selectedFiles.length === 0}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {uploading ? (
+                            <span className="flex items-center">
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Enviando...
+                            </span>
+                          ) : (
+                            `Enviar ${selectedFiles.length} arquivo(s)`
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {documents.length > 0 && (
+                    <div className="border-t pt-4 mt-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">
                         Documentos Enviados:
                       </h4>
-                      <ul className="space-y-1">
+                      <ul className="space-y-2">
                         {documents.map((doc) => (
-                          <li key={doc.id} className="flex items-center space-x-2 text-sm text-gray-600">
-                            <FileText className="w-4 h-4 text-green-500" />
-                            <span>{doc.document_filename || 'Documento sem nome'}</span>
+                          <li key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <FileText className="w-4 h-4 text-green-500" />
+                              <span className="text-sm text-gray-600 truncate max-w-[180px]">
+                                {doc.filename || 'Documento sem nome'}
+                              </span>
+                            </div>
                             <span className="text-xs text-gray-500">
-                              ({new Date(doc.created_at).toLocaleDateString('pt-BR')})
+                              {new Date(doc.created_at).toLocaleDateString('pt-BR')}
                             </span>
                           </li>
                         ))}
                       </ul>
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">Nenhum documento enviado</p>
                   )}
                 </div>
               </CardContent>
@@ -440,9 +569,6 @@ const Dashboard = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* User Info Card */}
-
-
             {/* Messages Card */}
             <Card>
               <CardHeader>
@@ -462,7 +588,7 @@ const Dashboard = () => {
                         <div
                           key={msg.id}
                           className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm shadow 
-                ${isAdmin ? 'self-start bg-gray-200 rounded-bl-none text-black' : 'self-end bg-green-100 rounded-br-none text-black'}`}
+                          ${isAdmin ? 'self-start bg-gray-200 rounded-bl-none text-black' : 'self-end bg-green-100 rounded-br-none text-black'}`}
                         >
                           <div className="flex items-center justify-between mb-1 text-xs">
                             <span className={isAdmin ? 'text-blue-700 font-semibold' : 'text-green-700 font-semibold'}>
@@ -500,36 +626,11 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-
             {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ações Rápidas</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <a
-                  href="https://wa.me/5511999999999?text=Olá! Preciso de ajuda com meu processo no Nome Limpo Agora."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <Button variant="outline" className="w-full flex items-center space-x-2">
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Falar no WhatsApp</span>
-                  </Button>
-                </a>
-
-                <Link to="/beneficios">
-                  <Button variant="outline" className="w-full flex items-center space-x-2">
-                    <CreditCard className="w-4 h-4" />
-                    <span>Ver Benefícios</span>
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+            
 
             {/* Next Steps */}
-            {profile?.status === 'finalizado' && (
+            {profile.status === 'finalizado' && (
               <Card className="border-green-200 bg-green-50">
                 <CardHeader>
                   <CardTitle className="text-green-800">🎉 Parabéns!</CardTitle>

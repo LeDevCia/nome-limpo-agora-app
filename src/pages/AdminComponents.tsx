@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Eye, FileSearch, Users, Clock, BarChart3, CheckCircle, UserCheck, Mail, Phone, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { UserProfile } from '@/types';
 
 interface ContactMessage {
@@ -56,24 +50,21 @@ export const AdminComponents = () => {
     em_analise: 0,
     proposals_available: 0,
     finalizado: 0,
-    cancelado: 0
+    cancelado: 0,
   });
-  
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!loading && (!isAuthenticated || !isAdmin)) {
+    if (!loading && !isAuthenticated) {
       navigate('/');
-      return;
-    }
-
-    if (isAuthenticated && isAdmin) {
+    } else if (!loading && isAuthenticated && isAdmin) {
       fetchUsers();
       fetchMessages();
       fetchStats();
     }
-  }, [isAuthenticated, isAdmin, loading, navigate]);
+  }, [isAuthenticated, isAdmin, loading]);
 
   const fetchUsers = async () => {
     try {
@@ -82,19 +73,12 @@ export const AdminComponents = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching users:', error);
-        toast({
-          title: "Erro",
-          description: "Erro ao carregar usuários",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (error) throw error;
 
       setUsers(data || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Erro ao buscar usuários:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar usuários', variant: 'destructive' });
     } finally {
       setLoadingData(false);
     }
@@ -107,14 +91,11 @@ export const AdminComponents = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        return;
-      }
+      if (error) throw error;
 
       setMessages(data || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('Erro ao buscar mensagens:', error);
     }
   };
 
@@ -124,28 +105,21 @@ export const AdminComponents = () => {
         .from('profiles')
         .select('status');
 
-      if (error) {
-        console.error('Error fetching stats:', error);
-        return;
-      }
+      if (error) throw error;
 
       const total = data?.length || 0;
-      const pendente = data?.filter(user => user.status === 'pendente').length || 0;
-      const em_analise = data?.filter(user => user.status === 'em_analise').length || 0;
-      const proposals_available = data?.filter(user => user.status === 'proposals_available').length || 0;
-      const finalizado = data?.filter(user => user.status === 'finalizado').length || 0;
-      const cancelado = data?.filter(user => user.status === 'cancelado').length || 0;
+      const countBy = (status: string) => data?.filter(u => u.status === status).length || 0;
 
       setStats({
         total,
-        pendente,
-        em_analise,
-        proposals_available,
-        finalizado,
-        cancelado
+        pendente: countBy('pendente'),
+        em_analise: countBy('em_analise'),
+        proposals_available: countBy('proposals_available'),
+        finalizado: countBy('finalizado'),
+        cancelado: countBy('cancelado'),
       });
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Erro ao buscar estatísticas:', error);
     }
   };
 
@@ -156,28 +130,15 @@ export const AdminComponents = () => {
         .update({ status: newStatus })
         .eq('id', userId);
 
-      if (error) {
-        console.error('Error updating user status:', error);
-        toast({
-          title: "Erro",
-          description: "Erro ao atualizar status do usuário",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (error) throw error;
 
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, status: newStatus } : user
-      ));
-
+      setUsers(users.map(u => (u.id === userId ? { ...u, status: newStatus } : u)));
       fetchStats();
 
-      toast({
-        title: "Sucesso",
-        description: "Status do usuário atualizado com sucesso",
-      });
+      toast({ title: 'Sucesso', description: 'Status do usuário atualizado com sucesso' });
     } catch (error) {
-      console.error('Error updating user status:', error);
+      console.error('Erro ao atualizar status:', error);
+      toast({ title: 'Erro', description: 'Erro ao atualizar status do usuário', variant: 'destructive' });
     }
   };
 
@@ -188,26 +149,14 @@ export const AdminComponents = () => {
         .update({ status: newStatus })
         .eq('id', messageId);
 
-      if (error) {
-        console.error('Error updating message status:', error);
-        toast({
-          title: "Erro",
-          description: "Erro ao atualizar status da mensagem",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (error) throw error;
 
-      setMessages(messages.map(message => 
-        message.id === messageId ? { ...message, status: newStatus } : message
-      ));
+      setMessages(messages.map(m => (m.id === messageId ? { ...m, status: newStatus } : m)));
 
-      toast({
-        title: "Sucesso",
-        description: "Status da mensagem atualizado com sucesso",
-      });
+      toast({ title: 'Sucesso', description: 'Status da mensagem atualizado com sucesso' });
     } catch (error) {
-      console.error('Error updating message status:', error);
+      console.error('Erro ao atualizar mensagem:', error);
+      toast({ title: 'Erro', description: 'Erro ao atualizar status da mensagem', variant: 'destructive' });
     }
   };
 
@@ -215,147 +164,96 @@ export const AdminComponents = () => {
     setAnalyzingUser(userId);
 
     try {
-      // Normalizar o documento no frontend
-      const normalizedDocument = document.replace(/[\.\-\/]/g, '');
-      const isCpf = normalizedDocument.length === 11;
-      const queryParam = isCpf ? `cpf=${document}` : `cnpj=${document}`;
-      console.log('Enviando requisição com document:', document, 'Normalized:', normalizedDocument, 'Query:', queryParam);
+      if (!document) throw new Error('Documento não fornecido');
+      const normalized = document.replace(/\D/g, '');
+      const isCpf = normalized.length === 11;
+      const queryParam = isCpf ? `cpf=${normalized}` : `cnpj=${normalized}`;
 
-      // Fazer requisição à API
       const response = await fetch(`http://localhost:3000/api/debts?${queryParam}`);
       const result = await response.json();
 
-      console.log('Resposta da API de dívidas:', result);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao buscar dívidas');
-      }
+      if (!result.success) throw new Error(result.error || 'Erro na consulta');
 
       const debts: Debt[] = result.data;
 
-      // Deletar dívidas existentes para o user_id
-      const { error: deleteError } = await supabase
-        .from('debts')
-        .delete()
-        .eq('user_id', userId);
+      await supabase.from('debts').delete().eq('user_id', userId);
 
-      if (deleteError) throw deleteError;
+      await supabase.from('profiles').update({ status: 'em_analise' }).eq('id', userId);
 
-      // Atualizar status do usuário para 'em_analise'
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ status: 'em_analise' })
-        .eq('id', userId);
-
-      if (profileError) throw profileError;
-
-      // Inserir novas dívidas no Supabase
       if (debts.length > 0) {
-        const { error: debtError } = await supabase.from('debts').insert(
-          debts.map(debt => ({
+        await supabase.from('debts').insert(
+          debts.map(d => ({
             user_id: userId,
-            document: isCpf ? debt.cpf : debt.cnpj, // Inclui a coluna document
-            amount: debt.amount,
-            creditor: debt.creditor,
-            due_date: new Date(debt.due_date).toISOString().split('T')[0],
-            status: debt.status,
+            document: isCpf ? d.cpf : d.cnpj,
+            amount: d.amount,
+            creditor: d.creditor,
+            due_date: new Date(d.due_date).toISOString().split('T')[0],
+            status: d.status,
             created_at: new Date().toISOString(),
           }))
         );
-
-        if (debtError) throw debtError;
       }
 
-      // Atualizar estado local
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, status: 'em_analise' } : user
-      ));
+      setUsers(users.map(u => (u.id === userId ? { ...u, status: 'em_analise' } : u)));
       fetchStats();
 
-      toast({
-        title: 'Análise Concluída',
-        description: `Análise de dívidas realizada com sucesso. Encontradas ${debts.length} dívidas.`,
-      });
-
-      // Redirecionar para a página de detalhes do usuário
+      toast({ title: 'Análise Concluída', description: `Encontradas ${debts.length} dívidas.` });
       navigate(`/admin/user/${userId}`);
-    } catch (error) {
-      console.error('Erro ao analisar dívidas:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao analisar dívidas do usuário: ' + (error.message || 'Erro desconhecido'),
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      console.error('Erro na análise de dívidas:', error);
+      toast({ title: 'Erro', description: error.message || 'Erro desconhecido', variant: 'destructive' });
     } finally {
       setAnalyzingUser(null);
     }
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
-      return;
-    }
+    if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      if (error) throw error;
 
-      if (error) {
-        console.error('Error deleting user:', error);
-        toast({
-          title: 'Erro',
-          description: 'Erro ao excluir usuário',
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      setUsers(users.filter(user => user.id !== userId));
+      setUsers(users.filter(u => u.id !== userId));
       fetchStats();
 
-      toast({
-        title: 'Sucesso',
-        description: 'Usuário excluído com sucesso',
-      });
+      toast({ title: 'Sucesso', description: 'Usuário excluído com sucesso' });
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error('Erro ao excluir usuário:', error);
+      toast({ title: 'Erro', description: 'Erro ao excluir usuário', variant: 'destructive' });
     }
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.document.includes(searchTerm.replace(/\D/g, ''));
-    
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
+    const matchText = searchTerm.toLowerCase();
+    const matchDoc = searchTerm.replace(/\D/g, '');
+    return (
+      user.name?.toLowerCase().includes(matchText) ||
+      user.email?.toLowerCase().includes(matchText) ||
+      user.document?.includes(matchDoc)
+    ) && (statusFilter === 'all' || user.status === statusFilter);
   });
 
   const getStatusBadge = (status: string | null) => {
-    const statusMap = {
-      'pendente': { color: 'bg-yellow-100 text-yellow-800', text: 'Pendente' },
-      'em_analise': { color: 'bg-blue-100 text-blue-800', text: 'Em Análise' },
-      'proposals_available': { color: 'bg-purple-100 text-purple-800', text: 'Propostas Disponíveis' },
-      'finalizado': { color: 'bg-green-100 text-green-800', text: 'Finalizado' },
-      'cancelado': { color: 'bg-red-100 text-red-800', text: 'Cancelado' }
+    const map = {
+      pendente: ['bg-yellow-100 text-yellow-800', 'Pendente'],
+      em_analise: ['bg-blue-100 text-blue-800', 'Em Análise'],
+      proposals_available: ['bg-purple-100 text-purple-800', 'Propostas Disponíveis'],
+      finalizado: ['bg-green-100 text-green-800', 'Finalizado'],
+      cancelado: ['bg-red-100 text-red-800', 'Cancelado']
     };
-
-    const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap['pendente'];
-    return <Badge className={statusInfo.color}>{statusInfo.text}</Badge>;
+    const [cls, txt] = map[status as keyof typeof map] || map.pendente;
+    return <Badge className={`px-2 py-1 text-xs font-medium ${cls}`}>{txt}</Badge>;
   };
 
   const getMessageStatusBadge = (status: string) => {
-    const statusMap = {
-      'novo': { color: 'bg-blue-100 text-blue-800', text: 'Novo' },
-      'em_andamento': { color: 'bg-yellow-100 text-yellow-800', text: 'Em Andamento' },
-      'respondido': { color: 'bg-green-100 text-green-800', text: 'Respondido' }
+    const map = {
+      novo: ['bg-blue-100 text-blue-800', 'Novo'],
+      em_andamento: ['bg-yellow-100 text-yellow-800', 'Em Andamento'],
+      respondido: ['bg-green-100 text-green-800', 'Respondido']
     };
-
-    const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap['novo'];
-    return <Badge className={statusInfo.color}>{statusInfo.text}</Badge>;
+    const [cls, txt] = map[status as keyof typeof map] || map.novo;
+    return <Badge className={`px-2 py-1 text-xs font-medium ${cls}`}>{txt}</Badge>;
   };
 
   return {
