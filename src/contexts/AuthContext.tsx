@@ -1,5 +1,4 @@
 
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -49,14 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
-    let hasRedirected = false;
 
     const fetchSessionAndProfile = async () => {
       try {
         setLoading(true);
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        // Se não há sessão válida, não é um erro - apenas significa que o usuário não está logado
         if (!session) {
           if (isMounted) {
             setSession(null);
@@ -67,7 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Se há erro de sessão que não seja simplesmente ausência de sessão
         if (sessionError) {
           if (isMounted) {
             setSession(null);
@@ -81,12 +77,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const currentUser = session.user;
         if (!currentUser) return;
 
-        setSession(session);
-        setUser(currentUser);
+        if (isMounted) {
+          setSession(session);
+          setUser(currentUser);
+        }
 
         const { data: userData, error: userError } = await supabase.auth.getUser();
         const isSuperAdmin = userData?.user?.user_metadata?.is_super_admin === true;
-        setIsAdmin(isSuperAdmin);
+        
+        if (isMounted) {
+          setIsAdmin(isSuperAdmin);
+        }
 
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
@@ -94,21 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('id', currentUser.id)
           .single();
 
-        if (profileError && profileError.code !== 'PGRST116') {
-          // Erro silencioso - não logamos mais no console
-        } else {
+        if (isMounted) {
           setProfile(profileData || null);
         }
 
-        const currentPath = window.location.pathname;
-        const publicPaths = ['/', '/login', '/register', '/beneficios', '/contato'];
-
-        if (!hasRedirected && publicPaths.includes(currentPath)) {
-          navigate(isSuperAdmin ? '/admin' : '/dashboard', { replace: true });
-          hasRedirected = true;
-        }
       } catch (error) {
-        // Erro silencioso - não logamos mais no console
+        // Silent error handling
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -127,8 +119,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         navigate('/', { replace: true });
       }
 
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        await fetchSessionAndProfile();
+      if (event === 'SIGNED_IN' && session) {
+        setSession(session);
+        setUser(session.user);
+
+        // Check if user is admin
+        const { data: userData } = await supabase.auth.getUser();
+        const isSuperAdmin = userData?.user?.user_metadata?.is_super_admin === true;
+        setIsAdmin(isSuperAdmin);
+
+        // Get profile data
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        setProfile(profileData || null);
+
+        // Navigate based on admin status
+        navigate(isSuperAdmin ? '/admin' : '/dashboard', { replace: true });
       }
     });
 
@@ -142,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (!error && data.user) {
+      // Don't navigate here - let the auth state change handler do it
       setSession(data.session);
       setUser(data.user);
 
@@ -156,6 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       setProfile(profileData || null);
+      
+      // Navigate immediately after setting state
       navigate(isSuperAdmin ? '/admin' : '/dashboard', { replace: true });
     }
 
