@@ -25,7 +25,6 @@ const Login = () => {
     try {
       const result = await login(email, password);
       if (!result.error) {
-        console.log('Login successful, admin status:', isAdmin);
         toast({
           title: "Login realizado com sucesso!",
           description: "Bem-vindo de volta ao Nome Limpo Agora.",
@@ -39,7 +38,6 @@ const Login = () => {
         });
       }
     } catch (error) {
-      console.error('Login error:', error);
       toast({
         title: "Erro no login",
         description: "Ocorreu um erro ao fazer login. Tente novamente.",
